@@ -16,7 +16,7 @@ interface ChatViewProps {
   credits: number
   edits: number
   messages: MockMessage[]
-  onMessagesChange: (messages: MockMessage[]) => void
+  onMessagesChange: (messages: MockMessage[] | ((prev: MockMessage[]) => MockMessage[])) => void
   onInputChange: (v: string) => void
   inputValue: string
   onOpenPurchase: () => void
@@ -164,7 +164,7 @@ export function ChatView({
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 px-4 md:px-8 py-4 border-t-[0.5px] border-[var(--border)]" style={{ backgroundColor: 'var(--bg-background)' }}>
+      <div className="shrink-0 px-4 md:px-8 py-4 border-t-[0.5px] border-[var(--border)]" style={{ backgroundColor: 'var(--bg-canvas)' }}>
         <div className="max-w-2xl mx-auto">
           <ChatBox
             value={inputValue}

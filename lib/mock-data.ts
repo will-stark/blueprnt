@@ -8,6 +8,7 @@ export interface MockUser {
   pfpUrl: string | null
   pfpGradient?: string
   credits: number
+  edits: number
   isAdmin: boolean
 }
 
@@ -25,6 +26,11 @@ export interface MockMessage {
   createdAt: string
 }
 
+export interface MockTicketNote {
+  text: string
+  createdAt: string
+}
+
 export interface MockTicket {
   id: string
   shortId: string
@@ -35,6 +41,7 @@ export interface MockTicket {
   description: string
   status: 'open' | 'in_progress' | 'resolved'
   createdAt: string
+  notes?: MockTicketNote[]
 }
 
 // Mock users
@@ -44,6 +51,7 @@ export const MOCK_FARCASTER_USER: MockUser = {
   pfpUrl: null,
   pfpGradient: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
   credits: 7,
+  edits: 8,
   isAdmin: true,
 }
 
@@ -53,6 +61,7 @@ export const MOCK_PRIVY_USER: MockUser = {
   pfpUrl: null,
   pfpGradient: 'linear-gradient(135deg, #059669 0%, #0EA5E9 100%)',
   credits: 3,
+  edits: 10,
   isAdmin: false,
 }
 
@@ -62,8 +71,14 @@ export const MOCK_ANON_USER: MockUser = {
   pfpUrl: null,
   pfpGradient: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',
   credits: 0,
+  edits: 3,
   isAdmin: false,
 }
+
+// Aliases for backward compatibility
+export const MOCK_USER_FARCASTER = MOCK_FARCASTER_USER
+export const MOCK_USER_PRIVY = MOCK_PRIVY_USER
+export const MOCK_USER_ANON = MOCK_ANON_USER
 
 // Mock chats
 export const MOCK_CHATS: MockChat[] = [
@@ -362,11 +377,80 @@ export const CREDIT_OPTIONS = [
   { tier: 3, label: 'Pack — $10', price: '$10.00', blueprints: 25, edits: 10, perGen: '$0.40' },
 ]
 
+// Mock AI responses for streaming simulation
+export const MOCK_AI_RESPONSES: string[] = [
+  MOCK_BLUEPRINT,
+  `## Section 1 — Expanded overview
+
+**Target users:** Freelancers, designers, and developers who need a simple way to create and manage project proposals, invoices, and client relationships.
+
+**Problem:** Most invoicing tools are bloated with features small freelancers never use, or are priced for teams. There's a gap for a focused, mobile-first tool that handles the full freelance billing cycle.
+
+**Success criteria:** A freelancer can create an invoice, send it to a client, and receive payment — all from their phone in under 3 minutes.
+
+---
+
+## Section 2 — Core elements
+
+**Authentication:** Email/password via NextAuth. Optional Google OAuth.
+
+**Key features:**
+- Client management (name, email, billing address)
+- Project tracking (hourly or fixed-price)
+- Invoice generation (PDF export, itemized line items)
+- Payment tracking (mark as paid, partial payments)
+- Dashboard (outstanding, paid, overdue totals)
+
+**Database schema:**
+- \`users\` — id, email, name, business_name, created_at
+- \`clients\` — id, user_id, name, email, address
+- \`projects\` — id, user_id, client_id, name, type, rate
+- \`invoices\` — id, project_id, status, total, due_date, sent_at, paid_at
+- \`invoice_items\` — id, invoice_id, description, quantity, unit_price
+
+---
+
+## Section 3 — Basic + extended logic
+
+**Invoice flow:**
+1. Select client → select or create project → add line items → preview → send via email (Resend)
+2. Client receives email with payment link (Stripe Checkout)
+3. On payment: webhook updates invoice status to \`paid\`, sends receipt
+
+**Edge cases:**
+- Duplicate invoice numbers: auto-increment per user, format INV-0001
+- Overdue detection: cron job daily, flags invoices past due_date with status \`overdue\`
+- Partial payments: track \`amount_paid\`, show remaining balance
+
+---
+
+## Section 4 — Full workflow
+
+1. **Login** → dashboard with summary cards (outstanding, overdue, paid this month)
+2. **Clients** → list view → add/edit/delete client
+3. **New invoice** → step 1: select client → step 2: add items → step 3: preview → send
+4. **Invoice list** → filter by status → click to view detail
+5. **Invoice detail** → status badge, line items, totals, action buttons (send, mark paid, download PDF)
+6. **Settings** → business info, payment details, invoice prefix/numbering
+
+---
+
+## Section 5 — Cost of development
+
+| Tier | Monthly Cost | Services |
+|---|---|---|
+| Free / OSS | $0 | NextAuth free, Neon free, Resend free (3k/mo), Vercel hobby |
+| Indie Builder | ~$19/mo | Neon pro, custom domain, Stripe (2.9% + $0.30/txn) |
+| At Scale | ~$85/mo | Neon scale, Vercel pro, Stripe volume discounts |
+`,
+]
+
 // Admin mock stats
 export const MOCK_ADMIN_STATS = {
   totalUsers: 1_248,
   requestsToday: 832,
   dailyCap: 1_400,
+  anonymousEnabled: true,
   recentEvents: [
     { type: 'generation_completed', fid: '423871', username: 'vitalik.eth', timestamp: '2026-05-02T14:22:00Z' },
     { type: 'credits_purchased', fid: 'privy|alice', username: 'alice@example.com', timestamp: '2026-05-02T14:18:00Z' },

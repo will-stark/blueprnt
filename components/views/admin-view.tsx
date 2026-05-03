@@ -108,7 +108,7 @@ export function AdminView() {
                 </div>
               </div>
 
-              <AnonymousToggleCard initialState={MOCK_ADMIN_STATS.anonymousEnabled} />
+              <AnonymousToggleCard initialState={MOCK_ADMIN_STATS.anonymousEnabled ?? MOCK_ADMIN_STATS.anonymousToggle} />
             </div>
 
             {/* Recent events */}

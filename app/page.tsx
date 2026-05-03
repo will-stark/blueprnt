@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Header } from '@/components/layout/header'
 import { Sidebar } from '@/components/layout/sidebar'
 import { ChatView } from '@/components/views/chat-view'
@@ -17,12 +17,14 @@ import {
 } from '@/components/modals/confirm-modals'
 import { OnboardingSlideshow } from '@/components/onboarding/onboarding-slideshow'
 import { WalletFundingSlideshow } from '@/components/onboarding/wallet-funding-slideshow'
+import { SplashScreen } from '@/components/ui/splash-screen'
 import {
   MOCK_USER_FARCASTER,
   MOCK_USER_PRIVY,
   MOCK_USER_ANON,
   MOCK_CHATS,
   type MockChat,
+  type MockUser,
   type MockMessage,
 } from '@/lib/mock-data'
 
@@ -39,18 +41,29 @@ type ActiveModal =
   | 'onboarding'
   | 'wallet_funding'
 
-// Cycle through users for dev preview
-const DEV_USER = MOCK_USER_FARCASTER
+const USER_OPTIONS: { label: string; user: MockUser }[] = [
+  { label: 'Farcaster', user: MOCK_USER_FARCASTER },
+  { label: 'Privy', user: MOCK_USER_PRIVY },
+  { label: 'Anonymous', user: MOCK_USER_ANON },
+]
 
 export default function HomePage() {
-  const [user] = useState(DEV_USER)
+  const [userIndex, setUserIndex] = useState(0)
+  const user = USER_OPTIONS[userIndex].user
+  const [showSplash, setShowSplash] = useState(true)
   const [chats, setChats] = useState<MockChat[]>(MOCK_CHATS)
   const [activeChatId, setActiveChatId] = useState<string>(MOCK_CHATS[0]?.id ?? '')
   const [messages, setMessages] = useState<MockMessage[]>([])
   const [inputValue, setInputValue] = useState('')
-  const [credits, setCredits] = useState(user.credits ?? 3)
-  const [edits, setEdits] = useState(user.edits ?? 5)
+  const [credits, setCredits] = useState(user.credits)
+  const [edits, setEdits] = useState(user.edits)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Simulate 3s SDK init splash screen
+  useEffect(() => {
+    const t = setTimeout(() => setShowSplash(false), 2500)
+    return () => clearTimeout(t)
+  }, [])
   const [chatMenuOpenId, setChatMenuOpenId] = useState<string | null>(null)
   const [activeModal, setActiveModal] = useState<ActiveModal>('none')
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
@@ -66,7 +79,7 @@ export default function HomePage() {
       return
     }
     const id = `chat_${Date.now()}`
-    const newChat: MockChat = { id, title: 'New chat', updatedAt: new Date().toISOString() }
+    const newChat: MockChat = { id, title: 'New chat', updatedAt: new Date().toISOString(), editsRemaining: 10 }
     setChats((prev) => [newChat, ...prev])
     setActiveChatId(id)
     setMessages([])
@@ -117,11 +130,45 @@ export default function HomePage() {
   const pendingChat = chats.find((c) => c.id === pendingDeleteId)
   const pendingRenameChat = chats.find((c) => c.id === pendingRenameId)
 
+  if (showSplash) return <SplashScreen />
+
   return (
     <div
       className="flex h-screen overflow-hidden font-sans"
       style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
+      {/* Demo mode user-switcher bar — remove before launch */}
+      <div className="fixed bottom-4 right-4 z-[60] flex gap-1 p-1.5 rounded-2xl border-[0.5px] border-[var(--border)]" style={{ backgroundColor: 'var(--bg-surface)', boxShadow: 'var(--shadow-md)' }}>
+        <span className="px-2 py-1 text-[10px] self-center" style={{ color: 'var(--text-muted)' }}>Demo:</span>
+        {USER_OPTIONS.map((opt, i) => (
+          <button
+            key={opt.label}
+            onClick={() => { setUserIndex(i); setCredits(opt.user.credits); setEdits(opt.user.edits) }}
+            className="px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-150"
+            style={{
+              backgroundColor: userIndex === i ? 'var(--accent)' : 'transparent',
+              color: userIndex === i ? '#fff' : 'var(--text-secondary)',
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+        <div className="w-px self-stretch" style={{ backgroundColor: 'var(--border)' }} />
+        <button
+          onClick={() => setActiveModal('onboarding')}
+          className="px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-150 hover:bg-[var(--bg-raised)]"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          Onboarding
+        </button>
+        <button
+          onClick={() => setActiveModal('wallet_funding')}
+          className="px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-150 hover:bg-[var(--bg-raised)]"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          Wallet slides
+        </button>
+      </div>
       {/* Sidebar */}
       <Sidebar
         user={user}
@@ -208,7 +255,7 @@ export default function HomePage() {
           onClose={close}
           onConfirm={() => {
             const id = `chat_${Date.now()}`
-            setChats((prev) => [{ id, title: 'New chat', updatedAt: new Date().toISOString() }, ...prev])
+            setChats((prev) => [{ id, title: 'New chat', updatedAt: new Date().toISOString(), editsRemaining: 10 }, ...prev])
             setActiveChatId(id)
             setMessages([])
             setInputValue('')
