@@ -36,6 +36,7 @@ function SlideVisual({ visual }: { visual: string }) {
 export function OnboardingSlideshow({ userType, onDismiss }: OnboardingSlideshowProps) {
   const [slideIndex, setSlideIndex] = useState(0)
   const [showTerms, setShowTerms] = useState(false)
+  const appName = process.env.NEXT_PUBLIC_APP_NAME ?? 'Blueprnt'
 
   const slide = ONBOARDING_SLIDES[slideIndex]
   const isLast = slideIndex === ONBOARDING_SLIDES.length - 1
@@ -90,10 +91,10 @@ export function OnboardingSlideshow({ userType, onDismiss }: OnboardingSlideshow
               </button>
             </div>
             <div className="space-y-3 text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              <p>Blueprnt generates AI-powered technical blueprints for planning purposes only. Outputs are not professional engineering advice and should be reviewed by qualified developers before implementation.</p>
-              <p>All payments made through Blueprnt are processed onchain via USDC on Base and Arbitrum One. Payments are non-refundable once transactions are confirmed onchain.</p>
-              <p>Users are responsible for ensuring they have sufficient funds and for paying any applicable network gas fees. Blueprnt is not responsible for failed transactions due to insufficient gas or network congestion.</p>
-              <p>By using Blueprnt, you agree to use the service only for lawful purposes and in accordance with these terms. The service may not be used to generate content that violates applicable laws or third-party rights.</p>
+              <p>{appName} generates AI-powered technical blueprints for planning purposes only. Outputs are not professional engineering advice and should be reviewed by qualified developers before implementation.</p>
+              <p>All payments made through {appName} are processed onchain via USDC on Base and Arbitrum One. Payments are non-refundable once transactions are confirmed onchain.</p>
+              <p>Users are responsible for ensuring they have sufficient funds and for paying any applicable network gas fees. {appName} is not responsible for failed transactions due to insufficient gas or network congestion.</p>
+              <p>By using {appName}, you agree to use the service only for lawful purposes and in accordance with these terms. The service may not be used to generate content that violates applicable laws or third-party rights.</p>
             </div>
           </div>
         ) : (
