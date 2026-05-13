@@ -191,7 +191,10 @@ export const ONBOARDING_SLIDES = [
     id: 4,
     title: 'Start building',
     body_farcaster: 'All payments in USDC on Base. You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.',
-    body_web: 'You get 1 free blueprint to try. Create an account to get 3 more free blueprints. After that, a single blueprint costs just $0.50.',
+    body_privy: 'You get 3 free blueprints to start. After that, a single blueprint costs just $0.50. Pay with USDC on Base.',
+    body_anonymous: 'You get 1 free blueprint to try. Create an account for 3 more free blueprints. After that, a single blueprint costs just $0.50.',
+    // body_web kept for backward compatibility
+    body_web: 'You get 1 free blueprint to try. Create an account for 3 more free blueprints. After that, a single blueprint costs just $0.50.',
     visual: 'payment',
   },
   {
@@ -214,13 +217,13 @@ export const WALLET_SLIDES = [
   {
     id: 2,
     title: 'Getting USDC',
-    body: 'Buy USDC on Coinbase or Kraken. Transfer to your wallet address on Arbitrum or Base.',
+    body: 'Buy USDC on Coinbase or Kraken. Transfer to your wallet address on Base.',
     visual: 'usdc',
   },
   {
     id: 3,
     title: 'ETH for gas',
-    body: 'You need a small amount of ETH on the same network for transaction fees. Even $1 worth is enough to start.',
+    body: 'You need a small amount of ETH on Base for transaction fees. Even $1 worth is enough to start.',
     visual: 'gas',
   },
 ]

@@ -1,13 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, X, ExternalLink } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { LogoMark } from '@/components/ui/logo'
 import { ONBOARDING_SLIDES } from '@/lib/mock-data'
+import { getSlide4Content, markOnboardingSeen } from '@/lib/onboarding'
 import type { UserType } from '@/lib/mock-data'
 
 interface OnboardingSlideshowProps {
   userType: UserType
+  // userId is needed to persist seen-state per Farcaster FID or Privy ID.
+  // Pass undefined for anonymous users.
+  userId?: string
   onDismiss: () => void
 }
 
@@ -33,7 +37,7 @@ function SlideVisual({ visual }: { visual: string }) {
   )
 }
 
-export function OnboardingSlideshow({ userType, onDismiss }: OnboardingSlideshowProps) {
+export function OnboardingSlideshow({ userType, userId, onDismiss }: OnboardingSlideshowProps) {
   const [slideIndex, setSlideIndex] = useState(0)
   const [showTerms, setShowTerms] = useState(false)
   const appName = process.env.NEXT_PUBLIC_APP_NAME ?? 'Blueprnt'
@@ -42,12 +46,16 @@ export function OnboardingSlideshow({ userType, onDismiss }: OnboardingSlideshow
   const isLast = slideIndex === ONBOARDING_SLIDES.length - 1
   const isFirst = slideIndex === 0
 
+  // Slide 4 (index 3) shows user-type-specific pricing copy.
   const body =
     slideIndex === 3
-      ? userType === 'farcaster'
-        ? (slide as typeof slide & { body_farcaster: string }).body_farcaster
-        : (slide as typeof slide & { body_web: string }).body_web
+      ? getSlide4Content(userType)
       : (slide as typeof slide & { body: string }).body
+
+  const handleDismiss = () => {
+    markOnboardingSeen(userType, userId)
+    onDismiss()
+  }
 
   const goNext = () => {
     if (!isLast) setSlideIndex((i) => i + 1)
@@ -68,7 +76,7 @@ export function OnboardingSlideshow({ userType, onDismiss }: OnboardingSlideshow
       >
         {/* Skip button */}
         <button
-          onClick={onDismiss}
+          onClick={handleDismiss}
           className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors hover:bg-[var(--bg-raised)]"
           style={{ color: 'var(--text-muted)' }}
         >
@@ -92,7 +100,7 @@ export function OnboardingSlideshow({ userType, onDismiss }: OnboardingSlideshow
             </div>
             <div className="space-y-3 text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               <p>{appName} generates AI-powered technical blueprints for planning purposes only. Outputs are not professional engineering advice and should be reviewed by qualified developers before implementation.</p>
-              <p>All payments made through {appName} are processed onchain via USDC on Base and Arbitrum One. Payments are non-refundable once transactions are confirmed onchain.</p>
+              <p>All payments made through {appName} are processed onchain via USDC on Base. Payments are non-refundable once transactions are confirmed onchain.</p>
               <p>Users are responsible for ensuring they have sufficient funds and for paying any applicable network gas fees. {appName} is not responsible for failed transactions due to insufficient gas or network congestion.</p>
               <p>By using {appName}, you agree to use the service only for lawful purposes and in accordance with these terms. The service may not be used to generate content that violates applicable laws or third-party rights.</p>
             </div>
@@ -160,7 +168,7 @@ export function OnboardingSlideshow({ userType, onDismiss }: OnboardingSlideshow
 
               {isLast ? (
                 <button
-                  onClick={onDismiss}
+                  onClick={handleDismiss}
                   className="flex-1 mx-4 py-3 rounded-xl text-[14px] font-medium text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
                   style={{ backgroundColor: 'var(--accent)' }}
                 >

@@ -18,6 +18,7 @@ import {
 import { OnboardingSlideshow } from '@/components/onboarding/onboarding-slideshow'
 import { WalletFundingSlideshow } from '@/components/onboarding/wallet-funding-slideshow'
 import { SplashScreen } from '@/components/ui/splash-screen'
+import { getNextResetTime } from '@/lib/share'
 import {
   MOCK_USER_FARCASTER,
   MOCK_USER_PRIVY,
@@ -48,18 +49,23 @@ const USER_OPTIONS: { label: string; user: MockUser }[] = [
 ]
 
 interface AppShellProps {
-  // When provided, the sidebar will pre-select this chat on first render.
-  // Claude Code will replace this with a real data-fetch.
   initialChatId?: string
-  // When true, the 2.5s splash screen is skipped (e.g. on /chat/[id] deep links)
   skipSplash?: boolean
 }
 
 export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   const [userIndex, setUserIndex] = useState(0)
   const user = USER_OPTIONS[userIndex].user
+
   const [showSplash, setShowSplash] = useState(!skipSplash)
+
+  // Saved chats — shown in sidebar. New chats are NOT added here until a message is sent.
   const [chats, setChats] = useState<MockChat[]>(MOCK_CHATS)
+
+  // A pending chat exists when the user has clicked "New Chat" but sent no message yet.
+  // It is not shown in the sidebar until promoted.
+  const [pendingChat, setPendingChat] = useState<MockChat | null>(null)
+
   const [activeChatId, setActiveChatId] = useState<string>(
     initialChatId ?? MOCK_CHATS[0]?.id ?? ''
   )
@@ -74,22 +80,50 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   const [pendingRenameId, setPendingRenameId] = useState<string | null>(null)
   const [showAdmin, setShowAdmin] = useState(false)
 
+  // Share-to-unlock claimed state. When set, the sidebar share button is disabled
+  // and shows a countdown. Resets every Monday at 1am UTC.
+  const [shareClaimedUntil, setShareClaimedUntil] = useState<Date | null>(null)
+
   useEffect(() => {
     if (skipSplash) return
     const t = setTimeout(() => setShowSplash(false), 2500)
     return () => clearTimeout(t)
   }, [skipSplash])
 
+  // Promote pending chat to saved chats when the first message is sent.
+  useEffect(() => {
+    if (messages.length > 0 && pendingChat !== null) {
+      setChats((prev) => [pendingChat, ...prev])
+      setPendingChat(null)
+    }
+  }, [messages, pendingChat])
+
   const close = () => setActiveModal('none')
 
+  const handleShareSuccess = useCallback(() => {
+    // Award 2 credits and set the weekly claimed lock.
+    setCredits((prev) => prev + 2)
+    setShareClaimedUntil(getNextResetTime())
+  }, [])
+
+  // TASK 4: "New Chat" — discard pending empty chats instead of adding them to the sidebar.
   const handleNewChat = useCallback(() => {
     if (messages.length > 0 && user.type === 'anonymous') {
       setActiveModal('new_chat_warn')
       return
     }
+
     const id = `chat_${Date.now()}`
-    const newChat: MockChat = { id, title: 'New chat', updatedAt: new Date().toISOString(), editsRemaining: 10 }
-    setChats((prev) => [newChat, ...prev])
+    const newPending: MockChat = {
+      id,
+      title: 'New chat',
+      updatedAt: new Date().toISOString(),
+      editsRemaining: 10,
+    }
+
+    // If already on an unsaved pending chat with no messages, just replace it.
+    // This prevents accumulating empty chats in the sidebar on repeated clicks.
+    setPendingChat(newPending)
     setActiveChatId(id)
     setMessages([])
     setInputValue('')
@@ -97,6 +131,8 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   }, [messages.length, user.type])
 
   const handleSelectChat = useCallback((id: string) => {
+    // Discard any unsaved pending chat when switching away.
+    setPendingChat(null)
     setActiveChatId(id)
     setMessages([])
     setShowAdmin(false)
@@ -132,11 +168,12 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
 
   const handleClearAll = useCallback(() => {
     setChats([])
+    setPendingChat(null)
     setActiveChatId('')
     setMessages([])
   }, [])
 
-  const pendingChat = chats.find((c) => c.id === pendingDeleteId)
+  const pendingChatObj = chats.find((c) => c.id === pendingDeleteId)
   const pendingRenameChat = chats.find((c) => c.id === pendingRenameId)
 
   if (showSplash) return <SplashScreen />
@@ -196,6 +233,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
         onOpenAdmin={() => { setShowAdmin(true); setSidebarOpen(false) }}
         chatMenuOpenId={chatMenuOpenId}
         onToggleChatMenu={setChatMenuOpenId}
+        shareClaimedUntil={shareClaimedUntil}
       />
 
       <div className="flex flex-col flex-1 min-w-0">
@@ -235,13 +273,18 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
           : <TipModal onClose={close} userType={user.type} />
       )}
       {activeModal === 'ticket' && <TicketModal onClose={close} />}
-      {activeModal === 'share' && <ShareVerificationModal onClose={close} />}
+      {activeModal === 'share' && (
+        <ShareVerificationModal
+          onClose={close}
+          onSuccess={handleShareSuccess}
+        />
+      )}
       {activeModal === 'clear_all' && (
         <ClearAllModal onClose={close} onConfirm={handleClearAll} />
       )}
-      {activeModal === 'delete_chat' && pendingChat && (
+      {activeModal === 'delete_chat' && pendingChatObj && (
         <DeleteChatModal
-          chatTitle={pendingChat.title}
+          chatTitle={pendingChatObj.title}
           onClose={close}
           onConfirm={handleConfirmDelete}
         />
@@ -258,7 +301,8 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
           onClose={close}
           onConfirm={() => {
             const id = `chat_${Date.now()}`
-            setChats((prev) => [{ id, title: 'New chat', updatedAt: new Date().toISOString(), editsRemaining: 10 }, ...prev])
+            const newPending: MockChat = { id, title: 'New chat', updatedAt: new Date().toISOString(), editsRemaining: 10 }
+            setPendingChat(newPending)
             setActiveChatId(id)
             setMessages([])
             setInputValue('')

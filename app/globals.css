@@ -47,32 +47,32 @@
 }
 
 [data-theme="dark"] {
-  /* Backgrounds */
-  --bg-canvas: #0E0E10;
-  --bg-surface: #17171A;
-  --bg-raised: #1F1F23;
-  --bg-muted: #26262B;
+  /* Backgrounds — navy-blue-tinted */
+  --bg-canvas: #0C1120;
+  --bg-surface: #151B2D;
+  --bg-raised: #1E2538;
+  --bg-muted: #2A3349;
 
-  /* Accent — Blueprint Blue (brighter for contrast) */
+  /* Accent — brighter blue for dark-mode contrast */
   --accent: #3B82F6;
   --accent-hover: #60A5FA;
-  --accent-light: #1E2A4A;
-  --accent-soft: #1E3A8A;
+  --accent-light: #1E3A5F;
+  --accent-soft: #2A4A7C;
 
-  /* Text */
-  --text-primary: #F5F5F4;
-  --text-secondary: #D4D4D0;
-  --text-muted: #9CA3AF;
-  --text-faint: #6B7280;
+  /* Text — off-whites with slight blue tint */
+  --text-primary: #F0F4F8;
+  --text-secondary: #D4DCE6;
+  --text-muted: #8B95A8;
+  --text-faint: #626B7D;
 
-  /* Borders */
-  --border: #2A2A30;
-  --border-strong: #3A3A42;
+  /* Borders — navy-tinted, visible at 0.5px */
+  --border: #2A3349;
+  --border-strong: #3A4560;
 
   /* Mono text */
-  --mono-text: #D4D4D0;
+  --mono-text: #D4DCE6;
 
-  /* Semantic */
+  /* Semantic (unchanged — good contrast on navy) */
   --success: #22C55E;
   --success-light: #0F2A1A;
   --warning: #F59E0B;
@@ -81,10 +81,10 @@
   --danger-light: #2A1416;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
-  --shadow-modal: 0 16px 48px -12px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px -4px rgba(0, 0, 0, 0.6);
+  --shadow-modal: 0 16px 48px -12px rgba(0, 0, 0, 0.7);
 }
 
 /* Shadcn compatibility tokens */

@@ -11,60 +11,35 @@ interface PurchaseModalProps {
   userType: UserType
 }
 
-type Network = 'base' | 'arbitrum'
+// All payments on Base — no network selector needed.
+const CHAIN_ID = 8453
+const NETWORK_NAME = 'Base'
 
 export function PurchaseModal({ onClose, userType }: PurchaseModalProps) {
-  const [network, setNetwork] = useState<Network>('base')
   const [selected, setSelected] = useState<number | null>(null)
 
-  const isFarcaster = userType === 'farcaster'
-  const isPrivy = userType === 'privy'
+  // Suppress unused-var lint until wired to real payment logic
+  void userType
+  void CHAIN_ID
 
   return (
     <Modal title="Purchase credits" onClose={onClose}>
       <div className="p-6 space-y-5">
-        {/* Farcaster: Base-only indicator */}
-        {isFarcaster && (
+        {/* Network indicator — Base only */}
+        <div
+          className="flex items-center gap-2 px-3 py-2 rounded-lg border-[0.5px] border-[var(--border)]"
+          style={{ backgroundColor: 'var(--bg-raised)' }}
+        >
           <div
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border-[0.5px] border-[var(--border)]"
-            style={{ backgroundColor: 'var(--bg-raised)' }}
+            className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0"
+            style={{ backgroundColor: '#0052FF' }}
           >
-            {/* Base logo placeholder */}
-            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white" style={{ backgroundColor: '#0052FF' }}>B</div>
-            <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-              Payments on Base
-            </span>
+            B
           </div>
-        )}
-
-        {/* Privy: network selector */}
-        {isPrivy && (
-          <div className="space-y-2">
-            <p className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>Network</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(['base', 'arbitrum'] as Network[]).map((net) => (
-                <button
-                  key={net}
-                  onClick={() => setNetwork(net)}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg border-[0.5px] text-[13px] transition-all duration-200"
-                  style={{
-                    borderColor: network === net ? 'var(--accent)' : 'var(--border)',
-                    backgroundColor: network === net ? 'var(--accent-light)' : 'var(--bg-raised)',
-                    color: network === net ? 'var(--accent)' : 'var(--text-secondary)',
-                  }}
-                >
-                  <div
-                    className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-medium text-white shrink-0"
-                    style={{ backgroundColor: net === 'base' ? '#0052FF' : '#2D374B' }}
-                  >
-                    {net === 'base' ? 'B' : 'A'}
-                  </div>
-                  {net === 'base' ? 'Base' : 'Arbitrum'}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+          <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+            Network: {NETWORK_NAME}
+          </span>
+        </div>
 
         {/* Credit options */}
         <div className="space-y-2">

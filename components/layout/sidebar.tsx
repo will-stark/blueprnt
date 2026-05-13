@@ -1,9 +1,10 @@
 'use client'
 
-import { SquarePen, Coins, Gift, HeartHandshake, Trash2, Shield, MoreVertical, X, ChevronRight } from 'lucide-react'
+import { SquarePen, Coins, Gift, HeartHandshake, Trash2, Shield, MoreVertical, X } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
 import { UserPFP } from '@/components/ui/user-pfp'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { formatTimeUntilReset } from '@/lib/share'
 import type { MockUser, MockChat } from '@/lib/mock-data'
 
 interface SidebarProps {
@@ -23,27 +24,54 @@ interface SidebarProps {
   onOpenAdmin?: () => void
   chatMenuOpenId: string | null
   onToggleChatMenu: (id: string | null) => void
+  // When set, the share button is grayed out and shows a reset countdown.
+  shareClaimedUntil?: Date | null
 }
 
 function SidebarItem({
   icon: Icon,
   label,
+  sublabel,
   variant = 'default',
+  disabled = false,
   onClick,
 }: {
   icon: React.ElementType
   label: string
+  sublabel?: string
   variant?: 'default' | 'danger'
+  disabled?: boolean
   onClick?: () => void
 }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors duration-150 hover:bg-[var(--bg-surface)] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-      style={{ color: variant === 'danger' ? 'var(--danger)' : 'var(--text-secondary)' }}
+      disabled={disabled}
+      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors duration-150 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed"
+      style={{
+        color: disabled
+          ? 'var(--text-faint)'
+          : variant === 'danger'
+          ? 'var(--danger)'
+          : 'var(--text-secondary)',
+        opacity: disabled ? 0.6 : 1,
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-surface)'
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.backgroundColor = ''
+      }}
     >
       <Icon className="w-4 h-4 shrink-0" />
-      {label}
+      <span className="flex-1 min-w-0">
+        {label}
+        {sublabel && (
+          <span className="block text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-faint)' }}>
+            {sublabel}
+          </span>
+        )}
+      </span>
     </button>
   )
 }
@@ -142,10 +170,12 @@ export function Sidebar({
   onOpenAdmin,
   chatMenuOpenId,
   onToggleChatMenu,
+  shareClaimedUntil,
 }: SidebarProps) {
   const isFarcaster = user.type === 'farcaster'
   const isAnonymous = user.type === 'anonymous'
   const isRegistered = !isAnonymous
+  const shareClaimed = shareClaimedUntil != null
 
   const sidebarContent = (
     <aside
@@ -178,7 +208,7 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* Chat list */}
+      {/* Chat list — only shows saved chats (pending new chats are not listed) */}
       <div className="flex-1 overflow-y-auto px-2">
         <div
           className="text-[11px] uppercase tracking-wider px-3 py-2"
@@ -216,7 +246,9 @@ export function Sidebar({
           <SidebarItem
             icon={Gift}
             label="Share to unlock 2 credits"
-            onClick={onOpenShare}
+            sublabel={shareClaimed ? `Resets in ${formatTimeUntilReset()}` : undefined}
+            disabled={shareClaimed}
+            onClick={shareClaimed ? undefined : onOpenShare}
           />
         )}
 
