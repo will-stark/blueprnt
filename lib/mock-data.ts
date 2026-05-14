@@ -25,6 +25,7 @@ export interface MockMessage {
   role: 'user' | 'assistant'
   content: string
   createdAt: string
+  branches?: Array<{ content: string; timestamp: string }>
 }
 
 export interface MockTicketNote {

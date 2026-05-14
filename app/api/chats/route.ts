@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { users, chats } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
+import { decrypt } from '@/lib/crypto'
 
 // GET /api/chats?identityId=X&userType=farcaster|privy
 export async function GET(req: NextRequest) {
@@ -29,8 +30,13 @@ export async function GET(req: NextRequest) {
       .where(eq(chats.userId, userRows[0].id))
       .orderBy(desc(chats.updatedAt))
 
-    console.log('[CHATS] OK: returned %d chats for userId=%s', userChats.length, userRows[0].id.slice(0, 8) + '…')
-    return Response.json({ chats: userChats })
+    const decryptedChats = userChats.map((chat) => ({
+      ...chat,
+      title: decrypt(chat.title),
+    }))
+
+    console.log('[CHATS] OK: returned %d chats for userId=%s', decryptedChats.length, userRows[0].id.slice(0, 8) + '…')
+    return Response.json({ chats: decryptedChats })
   } catch (err) {
     console.error('[CHATS] Error: %s', err instanceof Error ? err.message : String(err))
     if (err instanceof Error) console.error('[CHATS] Stack:', err.stack)

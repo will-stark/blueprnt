@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { chats, messages } from '@/lib/db/schema'
 import { eq, asc } from 'drizzle-orm'
+import { decrypt } from '@/lib/crypto'
 
 // GET /api/chats/[id]
 export async function GET(
@@ -24,8 +25,22 @@ export async function GET(
       .where(eq(messages.chatId, id))
       .orderBy(asc(messages.createdAt))
 
-    console.log('[CHATS/ID] OK: chatId=%s msgCount=%d', id.slice(0, 8) + '…', chatMessages.length)
-    return Response.json({ chat: chatRows[0], messages: chatMessages })
+    const decryptedChat = {
+      ...chatRows[0],
+      title: decrypt(chatRows[0].title),
+    }
+
+    const decryptedMessages = chatMessages.map((msg) => ({
+      ...msg,
+      content: decrypt(msg.content),
+      branches: (msg.branches as Array<{ content: string; timestamp: string }> | null)?.map((b) => ({
+        ...b,
+        content: decrypt(b.content),
+      })) ?? [],
+    }))
+
+    console.log('[CHATS/ID] OK: chatId=%s msgCount=%d', id.slice(0, 8) + '…', decryptedMessages.length)
+    return Response.json({ chat: decryptedChat, messages: decryptedMessages })
   } catch (err) {
     console.error('[CHATS/ID] Error for chatId=%s: %s', id, err instanceof Error ? err.message : String(err))
     if (err instanceof Error) console.error('[CHATS/ID] Stack:', err.stack)

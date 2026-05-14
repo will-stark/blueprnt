@@ -37,7 +37,7 @@ export const users = pgTable('users', {
 export const chats = pgTable('chats', {
   id:             uuid('id').primaryKey().defaultRandom(),
   userId:         uuid('user_id').references(() => users.id).notNull(),
-  title:          varchar('title', { length: 255 }).notNull().default('New chat'),
+  title:          text('title').notNull().default('New chat'),
   editsRemaining: integer('edits_remaining').notNull().default(10),
   createdAt:      timestamp('created_at').defaultNow(),
   updatedAt:      timestamp('updated_at').defaultNow(),
@@ -51,6 +51,7 @@ export const messages = pgTable('messages', {
   chatId:    uuid('chat_id').references(() => chats.id).notNull(),
   role:      varchar('role', { length: 10 }).notNull(), // 'user' | 'assistant'
   content:   text('content').notNull(),
+  branches:  jsonb('branches').default([]),
   createdAt: timestamp('created_at').defaultNow(),
 })
 

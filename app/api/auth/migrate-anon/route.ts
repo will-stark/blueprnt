@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { users, chats, messages } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import type { AnonChatState } from '@/lib/anon-migration'
+import { encrypt } from '@/lib/crypto'
 
 export async function POST(req: NextRequest) {
   console.log('[MIGRATE-ANON] POST hit:', new Date().toISOString())
@@ -35,11 +36,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (anonState && anonState.messages.length > 0) {
+      const rawTitle = anonState.title || 'New chat'
       const [chat] = await db
         .insert(chats)
         .values({
           userId: user.id,
-          title: anonState.title || 'New chat',
+          title: encrypt(rawTitle),
           editsRemaining: 3,
         })
         .returning()
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
       const msgRows = anonState.messages.map((m) => ({
         chatId: chat.id,
         role: m.role,
-        content: m.content,
+        content: encrypt(m.content),
       }))
 
       if (msgRows.length > 0) {

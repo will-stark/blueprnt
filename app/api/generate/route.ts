@@ -4,6 +4,8 @@ import { db } from '@/lib/db'
 import { users, chats, messages } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { isAnonymousLimitHit, logAnonymousGeneration } from '@/lib/db/anonymous-limit'
+import { encrypt } from '@/lib/crypto'
+import { hashForLogging } from '@/lib/logging'
 
 export const maxDuration = 60
 
@@ -99,7 +101,6 @@ function buildStream(
           }
         }
 
-        // Only save/deduct AFTER successful completion
         const meta = await onComplete(fullText)
         send(controller, { done: true, ...(meta ?? {}) })
         controller.close()
@@ -129,14 +130,15 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { userType, message } = body
+    const { userType, message, isRegenerate, messageId } = body
 
-    console.log('[GENERATE] Params: userType=%s msgLen=%d chatId=%s identityId=%s anonId=%s',
+    console.log('[GENERATE] Params: userType=%s msgLen=%d chatId=%s identityId=%s anonId=%s isRegen=%s',
       userType,
       message?.length ?? 0,
       body.chatId ?? 'none',
       body.identityId ? body.identityId.slice(0, 10) + '…' : 'none',
       body.anonymousId ? body.anonymousId.slice(0, 8) + '…' : 'none',
+      !!isRegenerate,
     )
 
     if (!userType || !message?.trim()) {
@@ -163,11 +165,10 @@ export async function POST(req: NextRequest) {
         return Response.json({ error: 'no_credits' }, { status: 402 })
       }
 
-      console.log('[GENERATE] Anonymous path — starting stream')
+      console.log('[GENERATE] Anonymous path — starting stream, msgHash=%s', hashForLogging(message))
       return buildStream(message, async () => {
         await logAnonymousGeneration(anonymousId)
         console.log('[GENERATE] Anonymous generation logged. duration=%dms', Date.now() - t0)
-        // No chatId returned — client handles localStorage
       })
     }
 
@@ -185,6 +186,55 @@ export async function POST(req: NextRequest) {
     }
     const user = userRows[0]
 
+    // ── Regenerate path ────────────────────────────────────────────────────
+    if (isRegenerate) {
+      if (!messageId || !chatId) {
+        console.warn('[GENERATE] Regenerate missing messageId or chatId')
+        return Response.json({ error: 'Missing messageId or chatId' }, { status: 400 })
+      }
+
+      const chatRows = await db.select().from(chats).where(eq(chats.id, chatId)).limit(1)
+      if (!chatRows[0]) return Response.json({ error: 'Chat not found' }, { status: 404 })
+      if (chatRows[0].userId !== user.id) return Response.json({ error: 'Unauthorized' }, { status: 403 })
+      if (chatRows[0].editsRemaining <= 0) {
+        console.log('[GENERATE] No edits for regenerate: chatId=%s', chatId.slice(0, 8) + '…')
+        return Response.json({ error: 'no_edits' }, { status: 402 })
+      }
+
+      const msgRows = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1)
+      if (!msgRows[0] || msgRows[0].chatId !== chatId) {
+        console.warn('[GENERATE] Message not found or wrong chat: messageId=%s', messageId)
+        return Response.json({ error: 'Message not found' }, { status: 404 })
+      }
+
+      console.log('[GENERATE] Regenerate path — starting stream. chatId=%s msgHash=%s',
+        chatId.slice(0, 8) + '…', hashForLogging(message))
+
+      return buildStream(message, async (fullText) => {
+        const newBranch = [{ content: encrypt(fullText), timestamp: new Date().toISOString() }]
+        await db
+          .update(messages)
+          .set({
+            branches: sql`COALESCE(${messages.branches}, '[]'::jsonb) || ${JSON.stringify(newBranch)}::jsonb`,
+          })
+          .where(eq(messages.id, messageId))
+
+        await db
+          .update(chats)
+          .set({
+            editsRemaining: sql`GREATEST(${chats.editsRemaining} - 1, 0)`,
+            updatedAt: new Date(),
+          })
+          .where(eq(chats.id, chatId))
+
+        console.log('[GENERATE] Regenerate saved: messageId=%s chatId=%s duration=%dms',
+          messageId.slice(0, 8) + '…', chatId.slice(0, 8) + '…', Date.now() - t0)
+
+        return { chatId, isRegenerate: true, messageId }
+      })
+    }
+
+    // ── New chat or edit ───────────────────────────────────────────────────
     const isNewChat = !chatId
     console.log('[GENERATE] User found: dbId=%s credits=%d isNewChat=%s',
       user.id.slice(0, 8) + '…', user.creditsRemaining, isNewChat)
@@ -207,14 +257,20 @@ export async function POST(req: NextRequest) {
       console.log('[GENERATE] Edit check passed: editsRemaining=%d', chatRows[0].editsRemaining)
     }
 
-    console.log('[GENERATE] Registered path — starting stream. isNewChat=%s', isNewChat)
+    console.log('[GENERATE] Registered path — starting stream. isNewChat=%s msgHash=%s',
+      isNewChat, hashForLogging(message))
 
     return buildStream(message, async (fullText) => {
       const title = message.slice(0, 60).trim() + (message.length > 60 ? '...' : '')
+      const encryptedMessage = encrypt(message)
+      const encryptedFullText = encrypt(fullText)
       let finalChatId: string = chatId
 
       if (isNewChat) {
-        const [newChat] = await db.insert(chats).values({ userId: user.id, title }).returning()
+        const [newChat] = await db
+          .insert(chats)
+          .values({ userId: user.id, title: encrypt(title) })
+          .returning()
         finalChatId = newChat.id
         await db
           .update(users)
@@ -235,13 +291,13 @@ export async function POST(req: NextRequest) {
       }
 
       await db.insert(messages).values([
-        { chatId: finalChatId, role: 'user', content: message },
-        { chatId: finalChatId, role: 'assistant', content: fullText },
+        { chatId: finalChatId, role: 'user', content: encryptedMessage },
+        { chatId: finalChatId, role: 'assistant', content: encryptedFullText },
       ])
-      console.log('[GENERATE] Messages saved: chatId=%s assistantLen=%d',
-        finalChatId.slice(0, 8) + '…', fullText.length)
+      console.log('[GENERATE] Messages saved: chatId=%s assistantHash=%s',
+        finalChatId.slice(0, 8) + '…', hashForLogging(fullText))
 
-      return { chatId: finalChatId, title }
+      return { chatId: finalChatId, title } // return plaintext title to client
     })
   } catch (err) {
     console.error('[GENERATE] Unhandled error after %dms: %s', Date.now() - t0,
