@@ -104,7 +104,8 @@ function buildStream(
         send(controller, { done: true, ...(meta ?? {}) })
         controller.close()
       } catch (err) {
-        console.error('[GENERATE] Stream error:', err)
+        console.error('[GENERATE] Stream error: %s', err instanceof Error ? err.message : String(err))
+        if (err instanceof Error) console.error('[GENERATE] Stream stack:', err.stack)
         send(controller, { error: 'Generation failed. Please try again.' })
         controller.close()
       }
@@ -123,16 +124,29 @@ function buildStream(
 // ─── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const t0 = Date.now()
+  console.log('[GENERATE] POST hit:', new Date().toISOString())
+
   try {
     const body = await req.json()
     const { userType, message } = body
 
+    console.log('[GENERATE] Params: userType=%s msgLen=%d chatId=%s identityId=%s anonId=%s',
+      userType,
+      message?.length ?? 0,
+      body.chatId ?? 'none',
+      body.identityId ? body.identityId.slice(0, 10) + '…' : 'none',
+      body.anonymousId ? body.anonymousId.slice(0, 8) + '…' : 'none',
+    )
+
     if (!userType || !message?.trim()) {
+      console.warn('[GENERATE] Missing required fields: userType=%s hasMessage=%s', userType, !!message?.trim())
       return Response.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     const filterError = applyHardFilters(message)
     if (filterError) {
+      console.warn('[GENERATE] Hard filter blocked message: %s', filterError)
       return Response.json({ error: filterError }, { status: 400 })
     }
 
@@ -140,15 +154,19 @@ export async function POST(req: NextRequest) {
     if (userType === 'anonymous') {
       const { anonymousId } = body
       if (!anonymousId) {
+        console.warn('[GENERATE] Anonymous request missing anonymousId')
         return Response.json({ error: 'Missing anonymousId' }, { status: 400 })
       }
       const limitHit = await isAnonymousLimitHit(anonymousId)
       if (limitHit) {
+        console.log('[GENERATE] Anonymous limit hit for id=%s', anonymousId.slice(0, 8) + '…')
         return Response.json({ error: 'no_credits' }, { status: 402 })
       }
 
+      console.log('[GENERATE] Anonymous path — starting stream')
       return buildStream(message, async () => {
         await logAnonymousGeneration(anonymousId)
+        console.log('[GENERATE] Anonymous generation logged. duration=%dms', Date.now() - t0)
         // No chatId returned — client handles localStorage
       })
     }
@@ -156,30 +174,40 @@ export async function POST(req: NextRequest) {
     // ── Registered (privy / farcaster) ─────────────────────────────────────
     const { identityId, chatId } = body
     if (!identityId) {
+      console.warn('[GENERATE] Registered request missing identityId')
       return Response.json({ error: 'Missing identityId' }, { status: 400 })
     }
 
     const userRows = await db.select().from(users).where(eq(users.identityId, identityId)).limit(1)
     if (userRows.length === 0) {
+      console.warn('[GENERATE] User not found: identityId=%s', identityId.slice(0, 10) + '…')
       return Response.json({ error: 'User not found' }, { status: 404 })
     }
     const user = userRows[0]
 
     const isNewChat = !chatId
+    console.log('[GENERATE] User found: dbId=%s credits=%d isNewChat=%s',
+      user.id.slice(0, 8) + '…', user.creditsRemaining, isNewChat)
 
     if (isNewChat) {
       if (user.creditsRemaining <= 0) {
+        console.log('[GENERATE] No credits remaining for user=%s', user.id.slice(0, 8) + '…')
         return Response.json({ error: 'no_credits' }, { status: 402 })
       }
     } else {
       const chatRows = await db.select().from(chats).where(eq(chats.id, chatId)).limit(1)
       if (chatRows.length === 0) {
+        console.warn('[GENERATE] Chat not found: chatId=%s', chatId)
         return Response.json({ error: 'Chat not found' }, { status: 404 })
       }
       if (chatRows[0].editsRemaining <= 0) {
+        console.log('[GENERATE] No edits remaining: chatId=%s', chatId.slice(0, 8) + '…')
         return Response.json({ error: 'no_edits' }, { status: 402 })
       }
+      console.log('[GENERATE] Edit check passed: editsRemaining=%d', chatRows[0].editsRemaining)
     }
+
+    console.log('[GENERATE] Registered path — starting stream. isNewChat=%s', isNewChat)
 
     return buildStream(message, async (fullText) => {
       const title = message.slice(0, 60).trim() + (message.length > 60 ? '...' : '')
@@ -192,6 +220,8 @@ export async function POST(req: NextRequest) {
           .update(users)
           .set({ creditsRemaining: sql`GREATEST(${users.creditsRemaining} - 1, 0)` })
           .where(eq(users.id, user.id))
+        console.log('[GENERATE] New chat created: chatId=%s creditsAfter=%d duration=%dms',
+          finalChatId.slice(0, 8) + '…', user.creditsRemaining - 1, Date.now() - t0)
       } else {
         await db
           .update(chats)
@@ -200,17 +230,23 @@ export async function POST(req: NextRequest) {
             updatedAt: new Date(),
           })
           .where(eq(chats.id, chatId))
+        console.log('[GENERATE] Chat updated (edit): chatId=%s duration=%dms',
+          chatId.slice(0, 8) + '…', Date.now() - t0)
       }
 
       await db.insert(messages).values([
         { chatId: finalChatId, role: 'user', content: message },
         { chatId: finalChatId, role: 'assistant', content: fullText },
       ])
+      console.log('[GENERATE] Messages saved: chatId=%s assistantLen=%d',
+        finalChatId.slice(0, 8) + '…', fullText.length)
 
       return { chatId: finalChatId, title }
     })
   } catch (err) {
-    console.error('[GENERATE] Error:', err)
+    console.error('[GENERATE] Unhandled error after %dms: %s', Date.now() - t0,
+      err instanceof Error ? err.message : String(err))
+    if (err instanceof Error) console.error('[GENERATE] Stack:', err.stack)
     return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

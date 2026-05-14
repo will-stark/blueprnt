@@ -8,11 +8,13 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params
+  const { id } = await params
+  console.log('[CHATS/ID] GET hit: chatId=%s', id.slice(0, 8) + '…')
 
+  try {
     const chatRows = await db.select().from(chats).where(eq(chats.id, id)).limit(1)
     if (chatRows.length === 0) {
+      console.warn('[CHATS/ID] Chat not found: chatId=%s', id)
       return Response.json({ error: 'Chat not found' }, { status: 404 })
     }
 
@@ -22,9 +24,11 @@ export async function GET(
       .where(eq(messages.chatId, id))
       .orderBy(asc(messages.createdAt))
 
+    console.log('[CHATS/ID] OK: chatId=%s msgCount=%d', id.slice(0, 8) + '…', chatMessages.length)
     return Response.json({ chat: chatRows[0], messages: chatMessages })
   } catch (err) {
-    console.error('[API] GET /api/chats/[id] error:', err)
+    console.error('[CHATS/ID] Error for chatId=%s: %s', id, err instanceof Error ? err.message : String(err))
+    if (err instanceof Error) console.error('[CHATS/ID] Stack:', err.stack)
     return Response.json({ error: 'Internal error' }, { status: 500 })
   }
 }

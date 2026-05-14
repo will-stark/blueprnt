@@ -16,7 +16,10 @@ export async function GET(req: NextRequest) {
   const identityId = searchParams.get('identityId')
   const email = searchParams.get('email')
 
+  console.log('[ADMIN-CHECK] GET hit: identityType=%s hasIdentityId=%s', identityType, !!identityId)
+
   if (!identityType || !identityId) {
+    console.log('[ADMIN-CHECK] Missing params — returning isAdmin=false')
     return NextResponse.json({ isAdmin: false })
   }
 
@@ -28,5 +31,6 @@ export async function GET(req: NextRequest) {
     isAdmin = getAdminEmails().has(email.toLowerCase())
   }
 
+  console.log('[ADMIN-CHECK] Result: identityType=%s isAdmin=%s', identityType, isAdmin)
   return NextResponse.json({ isAdmin })
 }

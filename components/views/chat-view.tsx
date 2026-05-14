@@ -73,13 +73,20 @@ export function ChatView({
   const handleSend = useCallback(async () => {
     if (!inputValue.trim() || isStreaming) return
 
+    console.log('[CHAT] Send: userType=%s credits=%d edits=%d hasMessages=%s activeChatId=%s',
+      user.type, creditsRef.current, editsRef.current, hasMessages,
+      activeChatId ? activeChatId.slice(0, 10) + '…' : 'none')
+
     // Anonymous checks
     if (isAnonymous) {
       if (!anonymousAllowed) {
+        console.log('[CHAT] Blocked: anonymous toggle off')
         setSlideUp('account_prompt')
         return
       }
       if (creditsRef.current === 0 || hasMessages) {
+        console.log('[CHAT] Blocked: anon limit (credits=%d hasMessages=%s)',
+          creditsRef.current, hasMessages)
         setSlideUp('anon_limit')
         return
       }
@@ -87,12 +94,14 @@ export function ChatView({
 
     // Registered: zero credits
     if (!isAnonymous && creditsRef.current === 0) {
+      console.log('[CHAT] Blocked: no credits remaining')
       setSlideUp('zero_credits')
       return
     }
 
     // Registered: zero edits on follow-up
     if (!isAnonymous && hasMessages && editsRef.current === 0) {
+      console.log('[CHAT] Blocked: no edits remaining')
       setSlideUp('zero_edits')
       return
     }
@@ -127,6 +136,9 @@ export function ChatView({
         }
       }
 
+      console.log('[CHAT] POST /api/generate: userType=%s hasIdentityId=%s hasChatId=%s msgLen=%d',
+        user.type, !!body.identityId, !!body.chatId, currentInput.length)
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,6 +147,7 @@ export function ChatView({
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
+        console.error('[CHAT] API error: status=%d error=%s', response.status, err.error)
         if (isAnonymous) setSlideUp('anon_limit')
         else if (err.error === 'no_credits') setSlideUp('zero_credits')
         else if (err.error === 'no_edits') setSlideUp('zero_edits')
@@ -142,6 +155,8 @@ export function ChatView({
         setStreamingContent('')
         return
       }
+
+      console.log('[CHAT] Stream started')
 
       const reader = response.body!.getReader()
       const decoder = new TextDecoder()
@@ -178,6 +193,8 @@ export function ChatView({
           }
 
           if (data.done) {
+            console.log('[CHAT] Stream done: chatId=%s title=%s',
+              data.chatId ?? 'anon', data.title ?? '—')
             // Commit the streamed content into the messages array
             const assistantMsg: MockMessage = {
               id: (Date.now() + 1).toString(),
@@ -215,7 +232,7 @@ export function ChatView({
         }
       }
     } catch (err) {
-      console.error('[CHAT] Fetch error:', err)
+      console.error('[CHAT] Fetch error: %s', err instanceof Error ? err.message : String(err))
     } finally {
       setIsStreaming(false)
     }
