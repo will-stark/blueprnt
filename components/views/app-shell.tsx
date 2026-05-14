@@ -66,7 +66,25 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     router.push('/')
   }, [logout, router])
 
+  // Debug: log whenever user state changes
+  useEffect(() => {
+    console.log('[APP-DEBUG] User state changed:', {
+      userType: realUser?.type,
+      hasFarcasterData: realUser?.type === 'farcaster' ? !!realUser.farcaster : false,
+      fid: realUser?.type === 'farcaster' ? realUser.farcaster?.fid : undefined,
+    })
+  }, [realUser])
+
   const [showSplash, setShowSplash] = useState(!skipSplash)
+
+  // Debug: log splash screen transitions
+  useEffect(() => {
+    console.log('[APP-DEBUG] Splash screen state:', {
+      showSplash,
+      userType: realUser?.type,
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSplash])
 
   // Saved chats — shown in sidebar. New chats are NOT added here until a message is sent.
   const [chats, setChats] = useState<MockChat[]>([])

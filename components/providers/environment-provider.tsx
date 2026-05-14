@@ -44,24 +44,51 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
     let mounted = true
 
     async function detectEnvironment() {
+      console.log('[FC-DEBUG] Starting environment detection...', {
+        timestamp: new Date().toISOString(),
+        userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'SSR',
+      })
+
       try {
         // Dynamic import — SDK is client-only and breaks SSR if imported statically
+        console.log('[FC-DEBUG] Attempting to import Farcaster SDK...')
         const { sdk } = await import('@farcaster/miniapp-sdk')
+        console.log('[FC-DEBUG] SDK imported successfully:', {
+          sdkExists: !!sdk,
+          sdkKeys: Object.keys(sdk),
+        })
 
+        console.log('[FC-DEBUG] Checking if in Farcaster mini-app...')
         const isMiniApp = await Promise.race([
           sdk.isInMiniApp(),
           new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3000)),
         ])
+        console.log('[FC-DEBUG] isInMiniApp result:', {
+          isMiniApp,
+          contextAvailable: !!sdk.context,
+        })
 
         if (!mounted) return
 
         if (isMiniApp) {
+          console.log('[FC-DEBUG] Detected Farcaster environment, extracting context...')
           const context = await sdk.context
           if (!mounted) return
 
           const fc = context.user
           const platformType = (context.client as { platformType?: string } | undefined)?.platformType as 'mobile' | 'web' | undefined
-          console.log('[env] platformType:', platformType)
+          console.log('[FC-DEBUG] Context extracted:', {
+            hasFid: !!fc?.fid,
+            fid: fc?.fid,
+            hasUsername: !!fc?.username,
+            username: fc?.username,
+            hasPfp: !!fc?.pfpUrl,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            hasWallet: !!(fc as any)?.wallet?.address,
+            clientType: (context.client as { clientType?: string } | undefined)?.clientType,
+            platformType,
+          })
+
           setUser({
             type: 'farcaster',
             farcaster: {
@@ -72,9 +99,12 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
             },
             platformType,
           })
+          console.log('[FC-SUCCESS] User state set to Farcaster:', { fid: fc.fid, username: fc.username })
+
           // Fire-and-forget — do not block rendering
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const fcWalletAddress: string | undefined = (fc as any).wallet?.address
+          console.log('[FC-DEBUG] Calling upsert-user API...')
           fetch('/api/auth/upsert-user', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -85,20 +115,38 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
               pfpUrl: fc.pfpUrl,
               walletAddress: fcWalletAddress,
             }),
-          }).catch(() => {}) // silent — upsert failure should never surface to user
+          })
+            .then(() => console.log('[FC-SUCCESS] upsert-user API call succeeded'))
+            .catch((err) => console.error('[FC-ERROR] upsert-user API call failed:', err))
 
           // Delay ready() so state and DOM are settled before dismissing splash
-          setTimeout(() => { sdk.actions.ready().catch(() => {}) }, 100)
+          setTimeout(() => {
+            console.log('[FC-DEBUG] Calling sdk.actions.ready()...')
+            sdk.actions.ready()
+              .then(() => console.log('[FC-SUCCESS] sdk.actions.ready() completed'))
+              .catch((err) => console.error('[FC-ERROR] sdk.actions.ready() failed:', err))
+          }, 100)
         } else {
           // Web mode — PrivySyncBridge below will update this once Privy resolves
+          console.log('[FC-DEBUG] Not in Farcaster environment, defaulting to web mode')
           setUser({ type: 'anonymous' })
         }
-      } catch {
-        if (mounted) setUser({ type: 'anonymous' })
+      } catch (error) {
+        console.error('[FC-ERROR] Environment detection failed:', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        })
+        if (mounted) {
+          console.log('[FC-DEBUG] Falling back to anonymous mode due to error')
+          setUser({ type: 'anonymous' })
+        }
       } finally {
         if (mounted) {
+          console.log('[FC-DEBUG] Setting isReady=true, isLoading=false')
           setIsLoading(false)
           setIsReady(true)
+        } else {
+          console.log('[FC-DEBUG] Component unmounted before finally — skipping state updates')
         }
       }
     }
