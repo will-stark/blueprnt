@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { Sidebar } from '@/components/layout/sidebar'
 import { ChatView } from '@/components/views/chat-view'
@@ -52,6 +53,12 @@ interface AppShellProps {
 export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   const { user: realUser } = useEnvironment()
   const { login, logout } = usePrivy()
+  const router = useRouter()
+
+  const handleSignOut = useCallback(async () => {
+    await logout()
+    router.push('/')
+  }, [logout, router])
 
   const [showSplash, setShowSplash] = useState(!skipSplash)
 
@@ -334,7 +341,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
         onToggleChatMenu={setChatMenuOpenId}
         shareClaimedUntil={shareClaimedUntil}
         onSignIn={login}
-        onSignOut={logout}
+        onSignOut={handleSignOut}
       />
 
       <div className="flex flex-col flex-1 min-w-0">

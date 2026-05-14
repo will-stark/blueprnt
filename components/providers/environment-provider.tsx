@@ -67,6 +67,8 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
             platformType,
           })
           // Fire-and-forget — do not block rendering
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const fcWalletAddress: string | undefined = (fc as any).wallet?.address
           fetch('/api/auth/upsert-user', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -75,6 +77,7 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
               identityId: String(fc.fid),
               username: fc.username,
               pfpUrl: fc.pfpUrl,
+              walletAddress: fcWalletAddress,
             }),
           }).catch(() => {}) // silent — upsert failure should never surface to user
           await sdk.actions.ready()

@@ -21,7 +21,6 @@ export function usePrivySync(
     if (authenticated && user) {
       const email =
         user.google?.email ??
-        user.apple?.email ??
         user.email?.address ??
         undefined
 

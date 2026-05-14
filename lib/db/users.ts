@@ -24,10 +24,16 @@ export async function upsertUser({
     .limit(1)
 
   if (existing.length > 0) {
-    // Update lastSeenAt on every login
+    // Always refresh profile fields so wallet address and display info stay current
     await db
       .update(users)
-      .set({ lastSeenAt: new Date() })
+      .set({
+        lastSeenAt: new Date(),
+        ...(walletAddress !== undefined && { walletAddress }),
+        ...(username !== undefined && { username }),
+        ...(pfpUrl !== undefined && { pfpUrl }),
+        ...(email !== undefined && { email }),
+      })
       .where(eq(users.identityId, identityId))
     return existing[0]
   }
