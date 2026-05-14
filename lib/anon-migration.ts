@@ -31,52 +31,18 @@ export function clearAnonState() {
   localStorage.removeItem(ANON_STATE_KEY)
 }
 
-// Migration logic — called after Privy signup succeeds.
-// Returns the number of credits to award (always 3 for a new Privy account).
-//
-// Confirmed logic (from product spec):
-//   • Anonymous user gets 1 free generation (localStorage)
-//   • On Privy signup: migrated chat gets edits topped up to 3
-//   • User receives 3 NEW credits (balance = 3, NOT 4)
-//   • Migrated chat is "free" (cost 0 credits from new balance)
-//
-// TODO: replace stub DB calls with real Drizzle queries.
-export async function migrateAnonUser(privyId: string): Promise<{
-  creditsAwarded: number
-  chatMigrated: boolean
-  toastMessage: string
-}> {
+/**
+ * Fire-and-forget: POST anonymous chat state to the server so it can be
+ * persisted under the new Privy account, then clear local storage.
+ * Called from usePrivySync when the user transitions anonymous→privy.
+ */
+export async function migrateAnonUser(privyId: string): Promise<void> {
   const anonState = loadAnonState()
-
-  if (!anonState) {
-    // No anonymous state — just award 3 credits
-    // await createUser(privyId, { credits: 3 })
-    return {
-      creditsAwarded: 3,
-      chatMigrated: false,
-      toastMessage: 'Account created! 3 free blueprints added.',
-    }
-  }
-
-  // 1. Create user (TODO: real DB call)
-  // const user = await createUser(privyId, { credits: 3 })
-
-  // 2. Migrate chat with edits topped up to 3 (TODO: real DB call)
-  // const migratedChat = await createChat({
-  //   user_id: user.id,
-  //   title: anonState.title || 'New chat',
-  //   edits_remaining: 3,
-  //   created_at: anonState.createdAt,
-  // })
-
-  // 3. Migrate messages (TODO: real DB call)
-  // for (const msg of anonState.messages) { await createMessage({ ... }) }
-
   clearAnonState()
 
-  return {
-    creditsAwarded: 3,
-    chatMigrated: true,
-    toastMessage: 'Account created! Your chat has been saved + 3 credits added.',
-  }
+  fetch('/api/auth/migrate-anon', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ privyId, anonState }),
+  }).catch(() => {})
 }

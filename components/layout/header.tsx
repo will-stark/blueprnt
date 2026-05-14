@@ -28,6 +28,7 @@ export function Header({
   onOpenShare,
 }: HeaderProps) {
   const isRegistered = user.type !== 'anonymous'
+  const isAnonymous = user.type === 'anonymous'
   const isFarcaster = user.type === 'farcaster'
   const creditsZero = credits === 0
   const editsZero = (edits ?? 1) === 0
@@ -52,16 +53,16 @@ export function Header({
 
       {/* Right: pills + icons + PFP */}
       <div className="flex items-center gap-1.5">
-        {/* Credits pill — always visible for registered */}
-        {isRegistered && (
+        {/* Credits pill — visible for all users */}
+        {(isRegistered || isAnonymous) && (
           <button
-            onClick={creditsZero ? onOpenPurchase : undefined}
-            className={creditsZero ? 'cursor-pointer' : 'cursor-default'}
+            onClick={creditsZero && isRegistered ? onOpenPurchase : undefined}
+            className={creditsZero && isRegistered ? 'cursor-pointer' : 'cursor-default'}
           >
             <Pill
               value={credits}
               label="credits"
-              timerText={creditsZero ? 'New in 23h 12m' : undefined}
+              timerText={creditsZero && isRegistered ? 'New in 23h 12m' : undefined}
             />
           </button>
         )}

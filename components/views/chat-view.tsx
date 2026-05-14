@@ -20,6 +20,9 @@ interface ChatViewProps {
   onInputChange: (v: string) => void
   inputValue: string
   onOpenPurchase: () => void
+  anonymousAllowed?: boolean
+  onLogin?: () => void
+  onGenerate?: () => void
 }
 
 type ActiveSlideUp = 'none' | 'zero_credits' | 'zero_edits' | 'anon_limit' | 'account_prompt'
@@ -33,6 +36,9 @@ export function ChatView({
   onInputChange,
   inputValue,
   onOpenPurchase,
+  anonymousAllowed = true,
+  onLogin,
+  onGenerate,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -91,6 +97,12 @@ export function ChatView({
       return
     }
 
+    // Anonymous toggle OFF: no free generations allowed
+    if (isAnonymous && !anonymousAllowed) {
+      setSlideUp('account_prompt')
+      return
+    }
+
     // Anonymous limit: 1 free message
     if (isAnonymous && hasMessages) {
       setSlideUp('anon_limit')
@@ -103,6 +115,7 @@ export function ChatView({
 
     // Pick a mock AI response
     const aiText = MOCK_AI_RESPONSES[aiTurnCount % MOCK_AI_RESPONSES.length]
+    const isFirstGen = !hasMessages
 
     mockStream(aiText, () => {
       const assistantMsg: MockMessage = {
@@ -111,8 +124,9 @@ export function ChatView({
         content: aiText,
       }
       onMessagesChange((prev: MockMessage[]) => [...prev, assistantMsg])
+      if (isFirstGen) onGenerate?.()
     })
-  }, [inputValue, isStreaming, hasMessages, isAnonymous, messages, aiTurnCount, mockStream, onMessagesChange, onInputChange])
+  }, [inputValue, isStreaming, hasMessages, isAnonymous, anonymousAllowed, messages, aiTurnCount, mockStream, onMessagesChange, onInputChange, onGenerate])
 
   const handleRegenerate = useCallback(() => {
     const lastAI = [...messages].reverse().find((m) => m.role === 'assistant')
@@ -202,7 +216,7 @@ export function ChatView({
         />
       )}
       {slideUp === 'account_prompt' && (
-        <AccountPromptModal onClose={() => setSlideUp('none')} />
+        <AccountPromptModal onClose={() => setSlideUp('none')} onLogin={onLogin} />
       )}
     </div>
   )

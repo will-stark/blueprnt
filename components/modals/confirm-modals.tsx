@@ -164,9 +164,15 @@ export function NewChatWarningModal({ onClose, onConfirm }: NewChatWarningModalP
 // Account Creation Prompt (anonymous pushed to sign up)
 interface AccountPromptModalProps {
   onClose: () => void
+  onLogin?: () => void
 }
 
-export function AccountPromptModal({ onClose }: AccountPromptModalProps) {
+export function AccountPromptModal({ onClose, onLogin }: AccountPromptModalProps) {
+  const handleLogin = () => {
+    onClose()
+    onLogin?.()
+  }
+
   return (
     <Modal title="Create an account" onClose={onClose}>
       <div className="p-6 space-y-4">
@@ -175,7 +181,7 @@ export function AccountPromptModal({ onClose }: AccountPromptModalProps) {
         </p>
         <div className="space-y-2">
           <button
-            onClick={onClose}
+            onClick={handleLogin}
             className="w-full flex items-center justify-center gap-2.5 py-3 rounded-lg border-[0.5px] border-[var(--border)] text-[13px] font-medium transition-all duration-200 hover:bg-[var(--bg-raised)]"
             style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-surface)' }}
           >
@@ -189,7 +195,7 @@ export function AccountPromptModal({ onClose }: AccountPromptModalProps) {
             Sign up with Google
           </button>
           <button
-            onClick={onClose}
+            onClick={handleLogin}
             className="w-full flex items-center justify-center gap-2.5 py-3 rounded-lg border-[0.5px] border-[var(--border)] text-[13px] font-medium transition-all duration-200 hover:bg-[var(--bg-raised)]"
             style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-surface)' }}
           >

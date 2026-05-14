@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { usePrivy, useWallets } from '@privy-io/react-auth'
 import type { AppUser } from '@/components/providers/environment-provider'
+import { migrateAnonUser } from '@/lib/anon-migration'
 
 export function usePrivySync(
   setUser: (user: AppUser) => void,
@@ -10,6 +11,7 @@ export function usePrivySync(
 ) {
   const { ready, authenticated, user } = usePrivy()
   const { wallets } = useWallets()
+  const didMigrateRef = useRef(false)
 
   useEffect(() => {
     // Never override a Farcaster session with Privy state
@@ -39,6 +41,12 @@ export function usePrivySync(
           walletAddress,
         }),
       }).catch(() => {})
+
+      // Migrate anonymous chat state once per login session
+      if (!didMigrateRef.current) {
+        didMigrateRef.current = true
+        migrateAnonUser(user.id)
+      }
     } else {
       setUser({ type: 'anonymous' })
     }

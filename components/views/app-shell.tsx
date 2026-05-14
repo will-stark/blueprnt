@@ -22,9 +22,6 @@ import { getNextResetTime } from '@/lib/share'
 import { useEnvironment } from '@/components/providers/environment-provider'
 import { usePrivy } from '@privy-io/react-auth'
 import {
-  MOCK_USER_FARCASTER,
-  MOCK_USER_PRIVY,
-  MOCK_USER_ANON,
   MOCK_CHATS,
   type MockChat,
   type MockUser,
@@ -44,12 +41,6 @@ type ActiveModal =
   | 'onboarding'
   | 'wallet_funding'
 
-const USER_OPTIONS: { label: string; user: MockUser }[] = [
-  { label: 'Farcaster', user: MOCK_USER_FARCASTER },
-  { label: 'Privy', user: MOCK_USER_PRIVY },
-  { label: 'Anonymous', user: MOCK_USER_ANON },
-]
-
 interface AppShellProps {
   initialChatId?: string
   skipSplash?: boolean
@@ -58,9 +49,6 @@ interface AppShellProps {
 export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   const { user: realUser } = useEnvironment()
   const { login } = usePrivy()
-
-  const [userIndex, setUserIndex] = useState(0)
-  const user = USER_OPTIONS[userIndex].user
 
   const [showSplash, setShowSplash] = useState(!skipSplash)
 
@@ -76,12 +64,15 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   )
   const [messages, setMessages] = useState<MockMessage[]>([])
   const [inputValue, setInputValue] = useState('')
-  const [credits, setCredits] = useState(user.credits)
-  const [edits, setEdits] = useState(user.edits)
+  const [credits, setCredits] = useState(0)
+  const [edits, setEdits] = useState(10)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [chatMenuOpenId, setChatMenuOpenId] = useState<string | null>(null)
   const [activeModal, setActiveModal] = useState<ActiveModal>('none')
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+  const [anonymousAllowed, setAnonymousAllowed] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   // Browser fingerprint for anonymous rate-limiting — generated once per session
   const [anonymousId, setAnonymousId] = useState<string | null>(null)
@@ -93,6 +84,17 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
       })
     ).catch(() => {})
   }, [realUser?.type])
+
+  // Set anonymous credit count once fingerprint is available
+  useEffect(() => {
+    if (!anonymousId) return
+    fetch(`/api/anon/credits?anonymousId=${encodeURIComponent(anonymousId)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (typeof data.credits === 'number') setCredits(data.credits)
+      })
+      .catch(() => {})
+  }, [anonymousId])
   const [pendingRenameId, setPendingRenameId] = useState<string | null>(null)
   const [showAdmin, setShowAdmin] = useState(false)
 
@@ -100,16 +102,34 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   // and shows a countdown. Resets every Monday at 1am UTC.
   const [shareClaimedUntil, setShareClaimedUntil] = useState<Date | null>(null)
 
-  // Anonymous toggle enforcement: if server has disabled anon access, prompt login
+  // Fetch anonymous toggle state; ChatView gates generation on this value
   useEffect(() => {
     if (!realUser || realUser.type !== 'anonymous') return
     fetch('/api/state')
       .then((r) => r.json())
       .then((data) => {
-        if (data.anonymousAllowed === false) login()
+        setAnonymousAllowed(data.anonymousAllowed !== false)
       })
       .catch(() => {})
-  }, [realUser, login])
+  }, [realUser])
+
+  // Check admin status once when a non-anonymous user is detected
+  useEffect(() => {
+    if (!realUser || realUser.type === 'anonymous') { setIsAdmin(false); return }
+
+    const identityId =
+      realUser.type === 'farcaster'
+        ? String(realUser.farcaster!.fid)
+        : realUser.privyId!
+    const email = realUser.email ?? ''
+
+    fetch(
+      `/api/admin/check?identityType=${realUser.type}&identityId=${encodeURIComponent(identityId)}&email=${encodeURIComponent(email)}`
+    )
+      .then((r) => r.json())
+      .then((data) => setIsAdmin(!!data.isAdmin))
+      .catch(() => {})
+  }, [realUser])
 
   // Poll /api/state every 10 s; pause when tab is hidden
   useEffect(() => {
@@ -178,7 +198,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
 
   // TASK 4: "New Chat" — discard pending empty chats instead of adding them to the sidebar.
   const handleNewChat = useCallback(() => {
-    if (messages.length > 0 && user.type === 'anonymous') {
+    if (messages.length > 0 && (realUser?.type ?? 'anonymous') === 'anonymous') {
       setActiveModal('new_chat_warn')
       return
     }
@@ -198,7 +218,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     setMessages([])
     setInputValue('')
     setShowAdmin(false)
-  }, [messages.length, user.type])
+  }, [messages.length, realUser?.type])
 
   const handleSelectChat = useCallback((id: string) => {
     // Discard any unsaved pending chat when switching away.
@@ -243,6 +263,20 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     setMessages([])
   }, [])
 
+  const user: MockUser = {
+    type: realUser?.type ?? 'anonymous',
+    username:
+      realUser?.type === 'farcaster'
+        ? (realUser.farcaster?.username ?? realUser.farcaster?.displayName ?? 'User')
+        : realUser?.type === 'privy'
+        ? (realUser.email?.split('@')[0] ?? 'User')
+        : 'Anon',
+    pfpUrl: realUser?.farcaster?.pfpUrl ?? null,
+    credits,
+    edits,
+    isAdmin,
+  }
+
   const pendingChatObj = chats.find((c) => c.id === pendingDeleteId)
   const pendingRenameChat = chats.find((c) => c.id === pendingRenameId)
 
@@ -253,39 +287,6 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
       className="flex h-screen overflow-hidden font-sans"
       style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
-      {/* Demo mode user-switcher — remove before launch */}
-      <div className="fixed bottom-4 right-4 z-[60] flex gap-1 p-1.5 rounded-2xl border-[0.5px] border-[var(--border)]" style={{ backgroundColor: 'var(--bg-surface)', boxShadow: 'var(--shadow-md)' }}>
-        <span className="px-2 py-1 text-[10px] self-center" style={{ color: 'var(--text-muted)' }}>Demo:</span>
-        {USER_OPTIONS.map((opt, i) => (
-          <button
-            key={opt.label}
-            onClick={() => { setUserIndex(i); setCredits(opt.user.credits); setEdits(opt.user.edits) }}
-            className="px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-150"
-            style={{
-              backgroundColor: userIndex === i ? 'var(--accent)' : 'transparent',
-              color: userIndex === i ? '#fff' : 'var(--text-secondary)',
-            }}
-          >
-            {opt.label}
-          </button>
-        ))}
-        <div className="w-px self-stretch" style={{ backgroundColor: 'var(--border)' }} />
-        <button
-          onClick={() => setActiveModal('onboarding')}
-          className="px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-150 hover:bg-[var(--bg-raised)]"
-          style={{ color: 'var(--text-secondary)' }}
-        >
-          Onboarding
-        </button>
-        <button
-          onClick={() => setActiveModal('wallet_funding')}
-          className="px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-150 hover:bg-[var(--bg-raised)]"
-          style={{ color: 'var(--text-secondary)' }}
-        >
-          Wallet slides
-        </button>
-      </div>
-
       <Sidebar
         user={user}
         chats={chats}
@@ -330,6 +331,9 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
             onInputChange={setInputValue}
             inputValue={inputValue}
             onOpenPurchase={() => setActiveModal('purchase')}
+            anonymousAllowed={anonymousAllowed}
+            onLogin={login}
+            onGenerate={user.type === 'anonymous' ? () => setCredits(0) : undefined}
           />
         )}
       </div>

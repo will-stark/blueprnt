@@ -1,0 +1,16 @@
+{
+  "accountAssociation": {
+    "header": "REPLACE_WITH_BASE64URL_HEADER",
+    "payload": "REPLACE_WITH_BASE64URL_PAYLOAD",
+    "signature": "REPLACE_WITH_SIGNATURE"
+  },
+  "frame": {
+    "version": "1",
+    "name": "Blueprnt",
+    "iconUrl": "https://blueprnt.app/icon.png",
+    "homeUrl": "https://blueprnt.app",
+    "splashImageUrl": "https://blueprnt.app/splash.png",
+    "splashBackgroundColor": "#FAFAF7",
+    "webhookUrl": "https://blueprnt.app/api/webhook"
+  }
+}
