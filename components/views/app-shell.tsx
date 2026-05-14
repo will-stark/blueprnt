@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Header } from '@/components/layout/header'
 import { Sidebar } from '@/components/layout/sidebar'
 import { ChatView } from '@/components/views/chat-view'
@@ -19,6 +19,7 @@ import { OnboardingSlideshow } from '@/components/onboarding/onboarding-slidesho
 import { WalletFundingSlideshow } from '@/components/onboarding/wallet-funding-slideshow'
 import { SplashScreen } from '@/components/ui/splash-screen'
 import { getNextResetTime } from '@/lib/share'
+import { shouldShowOnboarding } from '@/lib/onboarding'
 import { useEnvironment } from '@/components/providers/environment-provider'
 import { usePrivy } from '@privy-io/react-auth'
 import {
@@ -188,6 +189,23 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     }
   }, [messages, pendingChat])
 
+  // Show onboarding for first-time users; use a ref so we read current activeModal
+  // without adding it to deps (we only want this to fire when realUser changes).
+  const activeModalRef = useRef(activeModal)
+  activeModalRef.current = activeModal
+  useEffect(() => {
+    if (!realUser) return
+    if (activeModalRef.current !== 'none') return
+    const userId =
+      realUser.type === 'farcaster' ? String(realUser.farcaster!.fid)
+      : realUser.type === 'privy' ? realUser.privyId
+      : undefined
+    if (shouldShowOnboarding(realUser.type, userId)) {
+      setActiveModal('onboarding')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realUser])
+
   const close = () => setActiveModal('none')
 
   const handleShareSuccess = useCallback(() => {
@@ -263,6 +281,8 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     setMessages([])
   }, [])
 
+  const isMobile = realUser?.type === 'farcaster' && realUser.platformType === 'mobile'
+
   const user: MockUser = {
     type: realUser?.type ?? 'anonymous',
     username:
@@ -284,7 +304,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
 
   return (
     <div
-      className="flex h-screen overflow-hidden font-sans"
+      className="flex h-dvh overflow-hidden font-sans"
       style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
       <Sidebar
@@ -334,6 +354,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
             anonymousAllowed={anonymousAllowed}
             onLogin={login}
             onGenerate={user.type === 'anonymous' ? () => setCredits(0) : undefined}
+            isMobile={isMobile}
           />
         )}
       </div>
@@ -384,7 +405,20 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
         />
       )}
       {activeModal === 'onboarding' && (
-        <OnboardingSlideshow userType={user.type} onDismiss={close} />
+        <OnboardingSlideshow
+          userType={user.type}
+          userId={
+            realUser?.type === 'farcaster' ? String(realUser.farcaster!.fid)
+            : realUser?.type === 'privy' ? realUser.privyId
+            : undefined
+          }
+          onDismiss={() => {
+            close()
+            if (realUser?.type === 'privy') {
+              setActiveModal('wallet_funding')
+            }
+          }}
+        />
       )}
       {activeModal === 'wallet_funding' && (
         <WalletFundingSlideshow onDismiss={close} />

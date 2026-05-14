@@ -23,6 +23,7 @@ interface ChatViewProps {
   anonymousAllowed?: boolean
   onLogin?: () => void
   onGenerate?: () => void
+  isMobile?: boolean
 }
 
 type ActiveSlideUp = 'none' | 'zero_credits' | 'zero_edits' | 'anon_limit' | 'account_prompt'
@@ -39,6 +40,7 @@ export function ChatView({
   anonymousAllowed = true,
   onLogin,
   onGenerate,
+  isMobile = false,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -178,7 +180,15 @@ export function ChatView({
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 px-4 md:px-8 py-4 border-t-[0.5px] border-[var(--border)]" style={{ backgroundColor: 'var(--bg-canvas)' }}>
+      <div
+        className="shrink-0 px-4 md:px-8 pt-4 border-t-[0.5px] border-[var(--border)]"
+        style={{
+          backgroundColor: 'var(--bg-canvas)',
+          paddingBottom: isMobile
+            ? 'max(1rem, env(safe-area-inset-bottom))'
+            : '1rem',
+        }}
+      >
         <div className="max-w-2xl mx-auto">
           <ChatBox
             value={inputValue}

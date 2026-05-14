@@ -18,6 +18,7 @@ export interface AppUser {
   privyId?: string
   email?: string
   walletAddress?: string
+  platformType?: 'mobile' | 'web'
 }
 
 interface EnvironmentContextValue {
@@ -53,6 +54,8 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
         if (isMiniApp) {
           const context = await sdk.context
           const fc = context.user
+          const platformType = (context.client as { platformType?: string } | undefined)?.platformType as 'mobile' | 'web' | undefined
+          console.log('[env] platformType:', platformType)
           setUser({
             type: 'farcaster',
             farcaster: {
@@ -61,6 +64,7 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
               displayName: fc.displayName,
               pfpUrl: fc.pfpUrl,
             },
+            platformType,
           })
           // Fire-and-forget — do not block rendering
           fetch('/api/auth/upsert-user', {
