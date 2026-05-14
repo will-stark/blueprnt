@@ -5,6 +5,7 @@ export type UserType = 'farcaster' | 'privy' | 'anonymous'
 export interface MockUser {
   type: UserType
   username: string
+  email?: string
   pfpUrl: string | null
   pfpGradient?: string
   credits: number

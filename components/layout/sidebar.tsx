@@ -1,6 +1,6 @@
 'use client'
 
-import { SquarePen, Coins, Gift, HeartHandshake, Trash2, Shield, MoreVertical, X } from 'lucide-react'
+import { SquarePen, Coins, Gift, HeartHandshake, Trash2, Shield, MoreVertical, X, LogIn, LogOut } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
 import { UserPFP } from '@/components/ui/user-pfp'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -24,8 +24,9 @@ interface SidebarProps {
   onOpenAdmin?: () => void
   chatMenuOpenId: string | null
   onToggleChatMenu: (id: string | null) => void
-  // When set, the share button is grayed out and shows a reset countdown.
   shareClaimedUntil?: Date | null
+  onSignIn?: () => void
+  onSignOut?: () => void
 }
 
 function SidebarItem({
@@ -171,6 +172,8 @@ export function Sidebar({
   chatMenuOpenId,
   onToggleChatMenu,
   shareClaimedUntil,
+  onSignIn,
+  onSignOut,
 }: SidebarProps) {
   const isFarcaster = user.type === 'farcaster'
   const isAnonymous = user.type === 'anonymous'
@@ -282,18 +285,45 @@ export function Sidebar({
         )}
       </div>
 
-      {/* User block */}
-      <div className="border-t-[0.5px] border-[var(--border)] p-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <UserPFP user={user} size={32} />
-          <span
-            className="text-[13px] truncate"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {user.username}
-          </span>
-        </div>
-        <ThemeToggle />
+      {/* User / identity block */}
+      <div className="border-t-[0.5px] border-[var(--border)] p-3">
+        {isAnonymous ? (
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={onSignIn}
+              className="flex flex-1 items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150 text-left"
+              style={{ color: 'var(--text-secondary)' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-surface)' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '' }}
+            >
+              <LogIn className="w-4 h-4 shrink-0" />
+              Sign in / Sign up
+            </button>
+            <ThemeToggle />
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <UserPFP user={user} size={32} />
+              <div className="flex-1 min-w-0">
+                <span className="text-[13px] truncate block" style={{ color: 'var(--text-secondary)' }}>
+                  {isFarcaster ? `@${user.username}` : (user.email ?? user.username)}
+                </span>
+              </div>
+              <ThemeToggle />
+            </div>
+            {user.type === 'privy' && (
+              <button
+                onClick={onSignOut}
+                className="flex items-center gap-2 px-1 py-1 text-[12px] transition-colors hover:underline"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <LogOut className="w-3 h-3" />
+                Sign out
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </aside>
   )

@@ -20,6 +20,8 @@ import { WalletFundingSlideshow } from '@/components/onboarding/wallet-funding-s
 import { SplashScreen } from '@/components/ui/splash-screen'
 import { getNextResetTime } from '@/lib/share'
 import { shouldShowOnboarding } from '@/lib/onboarding'
+import { isReturningUser } from '@/lib/user-detection'
+import { generateGradient } from '@/lib/pfp-gradient'
 import { useEnvironment } from '@/components/providers/environment-provider'
 import { usePrivy } from '@privy-io/react-auth'
 import {
@@ -49,7 +51,7 @@ interface AppShellProps {
 
 export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   const { user: realUser } = useEnvironment()
-  const { login } = usePrivy()
+  const { login, logout } = usePrivy()
 
   const [showSplash, setShowSplash] = useState(!skipSplash)
 
@@ -196,6 +198,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   useEffect(() => {
     if (!realUser) return
     if (activeModalRef.current !== 'none') return
+    if (isReturningUser()) return
     const userId =
       realUser.type === 'farcaster' ? String(realUser.farcaster!.fid)
       : realUser.type === 'privy' ? realUser.privyId
@@ -291,7 +294,12 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
         : realUser?.type === 'privy'
         ? (realUser.email?.split('@')[0] ?? 'User')
         : 'Anon',
+    email: realUser?.email,
     pfpUrl: realUser?.farcaster?.pfpUrl ?? null,
+    pfpGradient:
+      realUser?.type === 'privy'
+        ? generateGradient(realUser.privyId ?? realUser.email ?? 'user')
+        : undefined,
     credits,
     edits,
     isAdmin,
@@ -325,6 +333,8 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
         chatMenuOpenId={chatMenuOpenId}
         onToggleChatMenu={setChatMenuOpenId}
         shareClaimedUntil={shareClaimedUntil}
+        onSignIn={login}
+        onSignOut={logout}
       />
 
       <div className="flex flex-col flex-1 min-w-0">
@@ -337,6 +347,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
           onOpenPurchase={() => setActiveModal('purchase')}
           onOpenTicket={() => setActiveModal('ticket')}
           onOpenShare={() => setActiveModal('share')}
+          onSignIn={login}
         />
 
         {showAdmin ? (

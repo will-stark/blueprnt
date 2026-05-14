@@ -87,7 +87,19 @@ export function ChatView({
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isStreaming) return
 
-    // Zero credits check
+    // Anonymous checks come first — different slide-ups than registered users
+    if (isAnonymous) {
+      if (!anonymousAllowed) {
+        setSlideUp('account_prompt')
+        return
+      }
+      if (creditsRef.current === 0 || hasMessages) {
+        setSlideUp('anon_limit')
+        return
+      }
+    }
+
+    // Registered users: zero credits
     if (creditsRef.current === 0) {
       setSlideUp('zero_credits')
       return
@@ -96,18 +108,6 @@ export function ChatView({
     // Zero edits check (for follow-up messages)
     if (hasMessages && editsRef.current === 0) {
       setSlideUp('zero_edits')
-      return
-    }
-
-    // Anonymous toggle OFF: no free generations allowed
-    if (isAnonymous && !anonymousAllowed) {
-      setSlideUp('account_prompt')
-      return
-    }
-
-    // Anonymous limit: 1 free message
-    if (isAnonymous && hasMessages) {
-      setSlideUp('anon_limit')
       return
     }
 

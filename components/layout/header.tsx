@@ -15,6 +15,7 @@ interface HeaderProps {
   onOpenPurchase: () => void
   onOpenTicket: () => void
   onOpenShare?: () => void
+  onSignIn?: () => void
 }
 
 export function Header({
@@ -26,10 +27,12 @@ export function Header({
   onOpenPurchase,
   onOpenTicket,
   onOpenShare,
+  onSignIn,
 }: HeaderProps) {
   const isRegistered = user.type !== 'anonymous'
   const isAnonymous = user.type === 'anonymous'
   const isFarcaster = user.type === 'farcaster'
+  const isPrivy = user.type === 'privy'
   const creditsZero = credits === 0
   const editsZero = (edits ?? 1) === 0
 
@@ -92,24 +95,43 @@ export function Header({
           </button>
         )}
 
-        {/* Question mark — registered only */}
-        {isRegistered && (
+        {/* Help / ticket icon — all users */}
+        <button
+          onClick={onOpenTicket}
+          aria-label="Submit a ticket"
+          title="Submit a ticket"
+          className="w-8 h-8 flex items-center justify-center rounded-lg border-[0.5px] border-[var(--border)] transition-all duration-200 hover:bg-[var(--bg-raised)] hover:border-[var(--border-strong)] active:scale-95"
+          style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)' }}
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
+
+        {/* Identity: Farcaster → username + PFP; Privy → nothing; Anonymous → sign in button */}
+        {isFarcaster && (
+          <div className="flex items-center gap-2 ml-0.5">
+            <span
+              className="hidden md:block text-[13px] font-medium"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              @{user.username}
+            </span>
+            <UserPFP user={user} size={28} />
+          </div>
+        )}
+        {isPrivy && null}
+        {isAnonymous && (
           <button
-            onClick={onOpenTicket}
-            aria-label="Submit a ticket"
-            title="Submit a ticket"
-            className="w-8 h-8 flex items-center justify-center rounded-lg border-[0.5px] border-[var(--border)] transition-all duration-200 hover:bg-[var(--bg-raised)] hover:border-[var(--border-strong)] active:scale-95"
+            onClick={onSignIn}
+            className="px-3 py-1.5 rounded-lg border-[0.5px] text-[13px] font-medium transition-all duration-200 hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
             style={{
-              backgroundColor: 'var(--bg-surface)',
+              borderColor: 'var(--border-strong)',
               color: 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-surface)',
             }}
           >
-            <HelpCircle className="w-4 h-4" />
+            Sign in / Sign up
           </button>
         )}
-
-        {/* PFP */}
-        <UserPFP user={user} size={28} />
       </div>
     </header>
   )
