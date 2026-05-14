@@ -4,7 +4,6 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import { ChatBox } from '@/components/chat/chat-box'
 import { PromptTips } from '@/components/chat/prompt-tips'
 import { UserMessage, AIMessage, ZeroEditsMessage } from '@/components/chat/message'
-import { Logo } from '@/components/ui/logo'
 import { ZeroCreditsSlideUp } from '@/components/modals/continue-chat-slideup'
 import { ContinueChatRegistered, ContinueChatAnon } from '@/components/modals/continue-chat-slideup'
 import { AccountPromptModal } from '@/components/modals/confirm-modals'
@@ -149,14 +148,13 @@ export function ChatView({
         {!hasMessages && !isStreaming ? (
           // Empty state
           <div className="flex flex-col items-center justify-center h-full gap-6 max-w-xl mx-auto">
-            <Logo size="large" />
             <h1
               className="text-[32px] font-medium text-center text-balance"
               style={{ color: 'var(--text-primary)' }}
             >
               What will you build?
             </h1>
-            <PromptTips onSelectTip={onInputChange} />
+            <PromptTips />
           </div>
         ) : (
           <div className="max-w-2xl mx-auto">
