@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Nunito, JetBrains_Mono } from 'next/font/google'
-import { ThemeProvider } from '@/components/providers/theme-provider'
+import { AppProviders } from '@/components/providers/app-providers'
 import './globals.css'
 
 const inter = Inter({
@@ -40,9 +40,9 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="light" className={`${inter.variable} ${nunito.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased bg-[var(--bg-canvas)] text-[var(--text-primary)]">
-        <ThemeProvider>
+        <AppProviders>
           {children}
-        </ThemeProvider>
+        </AppProviders>
       </body>
     </html>
   )

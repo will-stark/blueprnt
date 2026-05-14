@@ -76,8 +76,8 @@ export function ShareVerificationModal({ onClose, onSuccess }: ShareVerification
               <span className="text-[13px] shrink-0" style={{ color: 'var(--text-muted)' }}>ⓘ</span>
               <div className="text-[12px] space-y-0.5" style={{ color: 'var(--text-muted)' }}>
                 <p>To ensure verification, include:</p>
-                <p>• The app URL (blueprnt.app)</p>
-                <p>• The word &ldquo;Blueprnt&rdquo; or &ldquo;blueprint&rdquo;</p>
+                <p>• The text above</p>
+                <p>• The mini-app URL</p>
               </div>
             </div>
 

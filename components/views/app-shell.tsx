@@ -19,6 +19,8 @@ import { OnboardingSlideshow } from '@/components/onboarding/onboarding-slidesho
 import { WalletFundingSlideshow } from '@/components/onboarding/wallet-funding-slideshow'
 import { SplashScreen } from '@/components/ui/splash-screen'
 import { getNextResetTime } from '@/lib/share'
+import { useEnvironment } from '@/components/providers/environment-provider'
+import { usePrivy } from '@privy-io/react-auth'
 import {
   MOCK_USER_FARCASTER,
   MOCK_USER_PRIVY,
@@ -54,6 +56,9 @@ interface AppShellProps {
 }
 
 export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
+  const { user: realUser } = useEnvironment()
+  const { login } = usePrivy()
+
   const [userIndex, setUserIndex] = useState(0)
   const user = USER_OPTIONS[userIndex].user
 
@@ -77,12 +82,77 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   const [chatMenuOpenId, setChatMenuOpenId] = useState<string | null>(null)
   const [activeModal, setActiveModal] = useState<ActiveModal>('none')
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+  // Browser fingerprint for anonymous rate-limiting — generated once per session
+  const [anonymousId, setAnonymousId] = useState<string | null>(null)
+  useEffect(() => {
+    if (realUser?.type !== 'anonymous') return
+    import('@fingerprintjs/fingerprintjs').then((FingerprintJS) =>
+      FingerprintJS.default.load().then((fp) => fp.get()).then((result) => {
+        setAnonymousId(result.visitorId)
+      })
+    ).catch(() => {})
+  }, [realUser?.type])
   const [pendingRenameId, setPendingRenameId] = useState<string | null>(null)
   const [showAdmin, setShowAdmin] = useState(false)
 
   // Share-to-unlock claimed state. When set, the sidebar share button is disabled
   // and shows a countdown. Resets every Monday at 1am UTC.
   const [shareClaimedUntil, setShareClaimedUntil] = useState<Date | null>(null)
+
+  // Anonymous toggle enforcement: if server has disabled anon access, prompt login
+  useEffect(() => {
+    if (!realUser || realUser.type !== 'anonymous') return
+    fetch('/api/state')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.anonymousAllowed === false) login()
+      })
+      .catch(() => {})
+  }, [realUser, login])
+
+  // Poll /api/state every 10 s; pause when tab is hidden
+  useEffect(() => {
+    if (!realUser || realUser.type === 'anonymous') return
+
+    const identityId =
+      realUser.type === 'farcaster'
+        ? String(realUser.farcaster!.fid)
+        : realUser.privyId!
+
+    let retries = 0
+    let timer: ReturnType<typeof setTimeout>
+
+    async function poll() {
+      if (document.hidden) return
+      try {
+        const res = await fetch(
+          `/api/state?identityId=${encodeURIComponent(identityId)}&identityType=${realUser!.type}`
+        )
+        if (!res.ok) throw new Error('state fetch failed')
+        const data = await res.json()
+        if (typeof data.creditsRemaining === 'number') setCredits(data.creditsRemaining)
+        retries = 0
+      } catch {
+        retries++
+        if (retries < 3) {
+          timer = setTimeout(poll, 3000)
+          return
+        }
+        retries = 0
+      }
+      timer = setTimeout(poll, 10_000)
+    }
+
+    const onVisible = () => { if (!document.hidden) poll() }
+    document.addEventListener('visibilitychange', onVisible)
+    poll()
+
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [realUser])
 
   useEffect(() => {
     if (skipSplash) return

@@ -45,7 +45,7 @@ export function formatTimeUntilReset(): string {
 
 // Pre-filled cast text for the share flow
 export const SHARE_CAST_TEXT =
-  'Just discovered Blueprnt — turn any app idea into a full technical blueprint in seconds. Try it: blueprnt.app'
+  'Just discovered Blueprnt — an App that turns any app idea into a well detailed technical blueprint in seconds. Describe your idea and get architecture, tools, workflows, and development costs instantly. Try now blueprnt.app'
 
 export function buildCastComposerUrl(): string {
   return `https://warpcast.com/~/compose?text=${encodeURIComponent(SHARE_CAST_TEXT)}`

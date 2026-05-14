@@ -178,24 +178,24 @@ export const ONBOARDING_SLIDES = [
   {
     id: 2,
     title: 'Describe, generate, build',
-    body: 'Type your app idea in plain language. The AI generates a detailed technical document covering architecture, logic, workflow, and costs.',
+    body: 'Type your app idea in plain language. Get a detailed technical document that outlines the architecture, logic, workflow, and costs.',
     visual: 'generate',
   },
   {
     id: 3,
     title: 'Refine your blueprint',
-    body: 'Every blueprint comes with free edits. Ask the AI to update sections, expand details, or regenerate entirely. Need more? Credits are affordable.',
+    body: 'You can ask the agent to update sections, expand details, or regenerate entirely.\n\nNote: Every blueprint comes with a set number of edits. You can always purchase more edits if you run out of them.',
     visual: 'edit',
   },
   {
     id: 4,
     title: 'Start building',
     body_farcaster: 'All payments in USDC on Base. You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.',
-    body_privy: 'You get 3 free blueprints to start. After that, a single blueprint costs just $0.50. Pay with USDC on Base.',
-    body_anonymous: 'You get 1 free blueprint to try. Create an account for 3 more free blueprints. After that, a single blueprint costs just $0.50.',
+    body_privy: 'You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.\n\nAll payments in USDC on Base.',
+    body_anonymous: 'You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.\n\nAll payments in USDC on Base.',
     // body_web kept for backward compatibility
-    body_web: 'You get 1 free blueprint to try. Create an account for 3 more free blueprints. After that, a single blueprint costs just $0.50.',
-    visual: 'payment',
+    body_web: 'You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.\n\nAll payments in USDC on Base.',
+    visual: 'build',
   },
   {
     id: 5,
@@ -210,14 +210,14 @@ export const WALLET_SLIDES = [
   {
     id: 1,
     title: 'Your wallet',
-    body: 'Your embedded wallet was created automatically. Use the address below to receive USDC.',
+    body: 'Your embedded wallet was created automatically. Click next to find out how to fund your wallet with USDC.',
     visual: 'wallet',
     mockAddress: '0x3f9e...7a12',
   },
   {
     id: 2,
     title: 'Getting USDC',
-    body: 'Buy USDC on Coinbase or Kraken. Transfer to your wallet address on Base.',
+    body: 'Purchase USDC on Binance, Coinbase, or Kraken. Transfer to your wallet address on Base.',
     visual: 'usdc',
   },
   {
@@ -234,6 +234,7 @@ export const PROMPT_TIPS = [
   'Describe who it\'s for, what it does, and key features for the best results',
   'Your blueprint covers architecture, logic, full workflow, and cost of development',
   'Use your blueprint as a plan for building or handing off to a developer',
+  "Note: If you're building a Farcaster mini-app, include that in your prompt so the agent can tailor the blueprint accordingly.",
 ]
 
 // Mock tickets for admin dashboard

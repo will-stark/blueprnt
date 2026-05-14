@@ -42,10 +42,10 @@ function WalletVisual({ visual, address }: { visual: string; address?: string })
   const icons: Record<string, string> = { usdc: '💵', gas: '⛽' }
   return (
     <div
-      className="flex items-center justify-center w-20 h-20 rounded-3xl border-[0.5px] border-[var(--border)]"
+      className="flex items-center justify-center w-16 h-16 rounded-3xl border-[0.5px] border-[var(--border)]"
       style={{ backgroundColor: 'var(--bg-raised)' }}
     >
-      <span className="text-4xl" role="img" aria-label={visual}>{icons[visual] ?? '💳'}</span>
+      <span className="text-3xl" role="img" aria-label={visual}>{icons[visual] ?? '💳'}</span>
     </div>
   )
 }

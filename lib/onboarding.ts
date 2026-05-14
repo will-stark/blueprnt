@@ -34,8 +34,8 @@ export function getSlide4Content(userType: OnboardingUserType): string {
     case 'farcaster':
       return 'All payments in USDC on Base. You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.'
     case 'privy':
-      return 'You get 3 free blueprints to start. After that, a single blueprint costs just $0.50. Pay with USDC on Base.'
+      return 'You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.\n\nAll payments in USDC on Base.'
     case 'anonymous':
-      return 'You get 1 free blueprint to try. Create an account for 3 more free blueprints. After that, a single blueprint costs just $0.50.'
+      return 'You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.\n\nAll payments in USDC on Base.'
   }
 }
