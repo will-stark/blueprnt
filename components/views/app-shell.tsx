@@ -369,12 +369,20 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     setMessages([])
   }, [])
 
-  // Called by ChatView when Gemini creates a new chat in the DB
+  // Called by ChatView when a chat is created (DB for registered, localStorage for anon)
   const handleChatCreated = useCallback((chat: MockChat) => {
-    setChats((prev) => [chat, ...prev.filter((c) => c.id !== chat.id)])
+    setChats((prev) => [
+      chat,
+      // Remove both any duplicate entry and the local "chat_TIMESTAMP" placeholder
+      // that handleNewChat added before the real DB row existed.
+      ...prev.filter((c) => c.id !== chat.id && !c.id.startsWith('chat_')),
+    ])
     setActiveChatId(chat.id)
     setEdits(chat.editsRemaining)
-    router.push(`/chat/${chat.id}`)
+    // Anonymous chats are local-only — no DB-backed URL to push to
+    if (!chat.id.startsWith('anon_')) {
+      router.push(`/chat/${chat.id}`)
+    }
   }, [router])
 
   const isMobile = realUser?.type === 'farcaster' && realUser.platformType === 'mobile'

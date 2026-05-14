@@ -14,20 +14,6 @@ export const metadata: Metadata = {
       splashImageUrl: `${APP_URL}/splash.png`,
       splashBackgroundColor: '#FAFAF7',
     }),
-    'fc:frame': JSON.stringify({
-      version: 'next',
-      imageUrl: `${APP_URL}/og-image.png`,
-      button: {
-        title: `Open ${APP_NAME}`,
-        action: {
-          type: 'launch_frame',
-          name: APP_NAME,
-          url: APP_URL,
-          splashImageUrl: `${APP_URL}/splash.png`,
-          splashBackgroundColor: '#FAFAF7',
-        },
-      },
-    }),
   },
 }
 

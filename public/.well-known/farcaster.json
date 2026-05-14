@@ -4,7 +4,7 @@
     "payload": "REPLACE_WITH_BASE64URL_PAYLOAD",
     "signature": "REPLACE_WITH_SIGNATURE"
   },
-  "frame": {
+  "miniapp": {
     "version": "1",
     "name": "Blueprnt",
     "iconUrl": "https://blueprnt.app/icon.png",

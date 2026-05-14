@@ -119,7 +119,12 @@ export function ChatView({
         body.anonymousId = anonymousId
       } else {
         body.identityId = identityId
-        if (activeChatId) body.chatId = activeChatId
+        // Only include chatId for real DB chats (UUIDs). Pending new chats use a
+        // local "chat_TIMESTAMP" placeholder that isn't in the DB yet — omitting
+        // it signals the server to create a new chat row.
+        if (activeChatId && !activeChatId.startsWith('chat_')) {
+          body.chatId = activeChatId
+        }
       }
 
       const response = await fetch('/api/generate', {
@@ -130,9 +135,9 @@ export function ChatView({
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
-        if (err.error === 'no_credits') setSlideUp('zero_credits')
+        if (isAnonymous) setSlideUp('anon_limit')
+        else if (err.error === 'no_credits') setSlideUp('zero_credits')
         else if (err.error === 'no_edits') setSlideUp('zero_edits')
-        else if (err.error === 'no_credits' && isAnonymous) setSlideUp('anon_limit')
         setIsStreaming(false)
         setStreamingContent('')
         return
@@ -184,7 +189,6 @@ export function ChatView({
             setStreamingContent('')
 
             if (isAnonymous) {
-              // Save to localStorage so sidebar can restore this chat
               const anonChat: MockChat = {
                 id: `anon_${Date.now()}`,
                 title: currentInput.slice(0, 60).trim() + (currentInput.length > 60 ? '...' : ''),
@@ -196,6 +200,7 @@ export function ChatView({
                 stored.chats = [anonChat, ...(stored.chats || [])]
                 localStorage.setItem('blueprnt-anon-state', JSON.stringify(stored))
               } catch { /* ignore */ }
+              onChatCreated?.(anonChat)
               onGenerate?.()
             } else if (data.chatId && data.title) {
               // Registered: notify app-shell so it can update sidebar + URL
