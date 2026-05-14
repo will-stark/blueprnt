@@ -199,11 +199,11 @@ export function AccountPromptModal({ onClose, onLogin }: AccountPromptModalProps
             className="w-full flex items-center justify-center gap-2.5 py-3 rounded-lg border-[0.5px] border-[var(--border)] text-[13px] font-medium transition-all duration-200 hover:bg-[var(--bg-raised)]"
             style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-surface)' }}
           >
-            {/* Apple icon */}
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M16.52 0c.08 1.37-.38 2.73-1.22 3.72-.83.98-2.07 1.64-3.31 1.55-.11-1.31.44-2.69 1.26-3.62C14.09.67 15.39.06 16.52 0zM21 16.96c-.53 1.15-1.14 2.23-1.98 3.13-.58.65-1.24 1.56-2.26 1.56-.97 0-1.58-.58-2.59-.58-1.04 0-1.72.59-2.59.59-1 0-1.7-.93-2.34-1.6C7.47 18.01 6 14.8 6 11.62 6 7.75 8.36 5.7 10.68 5.7c1.04 0 1.96.62 2.7.62.7 0 1.77-.67 3.01-.67 1.6 0 3.14.87 4 2.34-3.22 1.6-2.71 5.8.61 7.97z"/>
+            {/* Email icon */}
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
             </svg>
-            Sign up with Apple
+            Sign up with email
           </button>
         </div>
         <button

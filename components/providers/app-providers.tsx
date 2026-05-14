@@ -11,9 +11,10 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <PrivyProvider
         appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
         config={{
-          loginMethods: ['google', 'apple'],
+          loginMethods: ['email', 'google'],
           appearance: {
             theme: 'light',
+            accentColor: '#2563EB',
           },
           embeddedWallets: {
             createOnLogin: 'users-without-wallets',
