@@ -56,6 +56,12 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   const router = useRouter()
 
   const handleSignOut = useCallback(async () => {
+    // Clear all chat state immediately so previous chats aren't visible after redirect
+    setChats([])
+    setActiveChatId('')
+    setMessages([])
+    setInputValue('')
+    setPendingChat(null)
     await logout()
     router.push('/')
   }, [logout, router])
@@ -63,15 +69,13 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   const [showSplash, setShowSplash] = useState(!skipSplash)
 
   // Saved chats — shown in sidebar. New chats are NOT added here until a message is sent.
-  const [chats, setChats] = useState<MockChat[]>(MOCK_CHATS)
+  const [chats, setChats] = useState<MockChat[]>([])
 
   // A pending chat exists when the user has clicked "New Chat" but sent no message yet.
   // It is not shown in the sidebar until promoted.
   const [pendingChat, setPendingChat] = useState<MockChat | null>(null)
 
-  const [activeChatId, setActiveChatId] = useState<string>(
-    initialChatId ?? MOCK_CHATS[0]?.id ?? ''
-  )
+  const [activeChatId, setActiveChatId] = useState<string>(initialChatId ?? '')
   const [messages, setMessages] = useState<MockMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [credits, setCredits] = useState(0)
@@ -189,6 +193,37 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     const t = setTimeout(() => setShowSplash(false), 2500)
     return () => clearTimeout(t)
   }, [skipSplash])
+
+  // Load chats based on user type. Anonymous users start empty (or restore from
+  // localStorage if they've generated before). Registered users get mock data
+  // until Phase 2 wires real DB chat history.
+  useEffect(() => {
+    if (!realUser) return
+
+    if (realUser.type === 'anonymous') {
+      const raw = typeof window !== 'undefined'
+        ? localStorage.getItem('blueprnt-anon-state')
+        : null
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw)
+          const loaded: MockChat[] = parsed.chats || []
+          setChats(loaded)
+          setActiveChatId(loaded[0]?.id ?? '')
+        } catch {
+          setChats([])
+          setActiveChatId('')
+        }
+      } else {
+        setChats([])
+        setActiveChatId('')
+      }
+    } else {
+      // privy / farcaster — TODO Phase 2: replace with DB fetch
+      setChats(MOCK_CHATS)
+      setActiveChatId(MOCK_CHATS[0]?.id ?? '')
+    }
+  }, [realUser?.type])
 
   // Promote pending chat to saved chats when the first message is sent.
   useEffect(() => {

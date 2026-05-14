@@ -41,6 +41,8 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
+    let mounted = true
+
     async function detectEnvironment() {
       try {
         // Dynamic import — SDK is client-only and breaks SSR if imported statically
@@ -51,8 +53,12 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
           new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3000)),
         ])
 
+        if (!mounted) return
+
         if (isMiniApp) {
           const context = await sdk.context
+          if (!mounted) return
+
           const fc = context.user
           const platformType = (context.client as { platformType?: string } | undefined)?.platformType as 'mobile' | 'web' | undefined
           console.log('[env] platformType:', platformType)
@@ -80,20 +86,26 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
               walletAddress: fcWalletAddress,
             }),
           }).catch(() => {}) // silent — upsert failure should never surface to user
-          await sdk.actions.ready()
+
+          // Delay ready() so state and DOM are settled before dismissing splash
+          setTimeout(() => { sdk.actions.ready().catch(() => {}) }, 100)
         } else {
           // Web mode — PrivySyncBridge below will update this once Privy resolves
           setUser({ type: 'anonymous' })
         }
       } catch {
-        setUser({ type: 'anonymous' })
+        if (mounted) setUser({ type: 'anonymous' })
       } finally {
-        setIsLoading(false)
-        setIsReady(true)
+        if (mounted) {
+          setIsLoading(false)
+          setIsReady(true)
+        }
       }
     }
 
     detectEnvironment()
+
+    return () => { mounted = false }
   }, [])
 
   return (
