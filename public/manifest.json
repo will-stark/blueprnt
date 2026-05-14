@@ -1,0 +1,19 @@
+{
+  "name": "Blueprnt",
+  "short_name": "Blueprnt",
+  "description": "Generate technical blueprints for your app ideas in seconds",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF7",
+  "theme_color": "#2563EB",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   description:
     'Turn any app idea into a full technical blueprint — ready to build, ready to hand off.',
   generator: 'v0.app',
+  manifest: '/manifest.json',
   icons: {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },
