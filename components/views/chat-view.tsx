@@ -7,8 +7,7 @@ import { UserMessage, AIMessage, ZeroEditsMessage } from '@/components/chat/mess
 import { ZeroCreditsSlideUp } from '@/components/modals/continue-chat-slideup'
 import { ContinueChatRegistered, ContinueChatAnon } from '@/components/modals/continue-chat-slideup'
 import { AccountPromptModal } from '@/components/modals/confirm-modals'
-import type { MockUser, MockMessage } from '@/lib/mock-data'
-import { MOCK_AI_RESPONSES } from '@/lib/mock-data'
+import type { MockUser, MockMessage, MockChat } from '@/lib/mock-data'
 
 interface ChatViewProps {
   user: MockUser
@@ -23,6 +22,11 @@ interface ChatViewProps {
   onLogin?: () => void
   onGenerate?: () => void
   isMobile?: boolean
+  // Phase 2: real generation
+  identityId?: string | null
+  anonymousId?: string | null
+  activeChatId?: string
+  onChatCreated?: (chat: MockChat) => void
 }
 
 type ActiveSlideUp = 'none' | 'zero_credits' | 'zero_edits' | 'anon_limit' | 'account_prompt'
@@ -40,6 +44,10 @@ export function ChatView({
   onLogin,
   onGenerate,
   isMobile = false,
+  identityId,
+  anonymousId,
+  activeChatId,
+  onChatCreated,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -51,7 +59,6 @@ export function ChatView({
   creditsRef.current = credits
 
   const hasMessages = messages.length > 0
-  const aiTurnCount = messages.filter((m) => m.role === 'assistant').length
   const zeroEdits = edits === 0 && hasMessages
   const isFarcaster = user.type === 'farcaster'
   const isAnonymous = user.type === 'anonymous'
@@ -63,30 +70,10 @@ export function ChatView({
     }
   }, [messages, streamingContent])
 
-  const mockStream = useCallback(
-    (text: string, onDone: () => void) => {
-      setStreamingContent('')
-      setIsStreaming(true)
-      let i = 0
-      const interval = setInterval(() => {
-        i += 3
-        setStreamingContent(text.slice(0, i))
-        if (i >= text.length) {
-          clearInterval(interval)
-          setIsStreaming(false)
-          setStreamingContent('')
-          onDone()
-        }
-      }, 16)
-      return interval
-    },
-    []
-  )
-
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     if (!inputValue.trim() || isStreaming) return
 
-    // Anonymous checks come first — different slide-ups than registered users
+    // Anonymous checks
     if (isAnonymous) {
       if (!anonymousAllowed) {
         setSlideUp('account_prompt')
@@ -98,48 +85,145 @@ export function ChatView({
       }
     }
 
-    // Registered users: zero credits
-    if (creditsRef.current === 0) {
+    // Registered: zero credits
+    if (!isAnonymous && creditsRef.current === 0) {
       setSlideUp('zero_credits')
       return
     }
 
-    // Zero edits check (for follow-up messages)
-    if (hasMessages && editsRef.current === 0) {
+    // Registered: zero edits on follow-up
+    if (!isAnonymous && hasMessages && editsRef.current === 0) {
       setSlideUp('zero_edits')
       return
     }
 
-    const userMsg: MockMessage = { id: Date.now().toString(), role: 'user', content: inputValue }
+    const currentInput = inputValue
+    const userMsg: MockMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: currentInput,
+      createdAt: new Date().toISOString(),
+    }
     onMessagesChange([...messages, userMsg])
     onInputChange('')
+    setIsStreaming(true)
+    setStreamingContent('')
 
-    // Pick a mock AI response
-    const aiText = MOCK_AI_RESPONSES[aiTurnCount % MOCK_AI_RESPONSES.length]
-    const isFirstGen = !hasMessages
-
-    mockStream(aiText, () => {
-      const assistantMsg: MockMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: aiText,
+    try {
+      const body: Record<string, unknown> = {
+        userType: user.type,
+        message: currentInput,
       }
-      onMessagesChange((prev: MockMessage[]) => [...prev, assistantMsg])
-      if (isFirstGen) onGenerate?.()
-    })
-  }, [inputValue, isStreaming, hasMessages, isAnonymous, anonymousAllowed, messages, aiTurnCount, mockStream, onMessagesChange, onInputChange, onGenerate])
 
+      if (isAnonymous) {
+        body.anonymousId = anonymousId
+      } else {
+        body.identityId = identityId
+        if (activeChatId) body.chatId = activeChatId
+      }
+
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        if (err.error === 'no_credits') setSlideUp('zero_credits')
+        else if (err.error === 'no_edits') setSlideUp('zero_edits')
+        else if (err.error === 'no_credits' && isAnonymous) setSlideUp('anon_limit')
+        setIsStreaming(false)
+        setStreamingContent('')
+        return
+      }
+
+      const reader = response.body!.getReader()
+      const decoder = new TextDecoder()
+      let accumulated = ''
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? '' // keep incomplete line for next chunk
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          let data: Record<string, unknown>
+          try {
+            data = JSON.parse(line.slice(6))
+          } catch {
+            continue
+          }
+
+          if (data.text) {
+            accumulated += data.text as string
+            setStreamingContent(accumulated)
+          }
+
+          if (data.error) {
+            console.error('[CHAT] Generation error from server:', data.error)
+            setIsStreaming(false)
+            setStreamingContent('')
+            return
+          }
+
+          if (data.done) {
+            // Commit the streamed content into the messages array
+            const assistantMsg: MockMessage = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: accumulated,
+              createdAt: new Date().toISOString(),
+            }
+            onMessagesChange((prev: MockMessage[]) => [...prev, assistantMsg])
+            setStreamingContent('')
+
+            if (isAnonymous) {
+              // Save to localStorage so sidebar can restore this chat
+              const anonChat: MockChat = {
+                id: `anon_${Date.now()}`,
+                title: currentInput.slice(0, 60).trim() + (currentInput.length > 60 ? '...' : ''),
+                updatedAt: new Date().toISOString(),
+                editsRemaining: 0,
+              }
+              try {
+                const stored = JSON.parse(localStorage.getItem('blueprnt-anon-state') || '{"chats":[]}')
+                stored.chats = [anonChat, ...(stored.chats || [])]
+                localStorage.setItem('blueprnt-anon-state', JSON.stringify(stored))
+              } catch { /* ignore */ }
+              onGenerate?.()
+            } else if (data.chatId && data.title) {
+              // Registered: notify app-shell so it can update sidebar + URL
+              onChatCreated?.({
+                id: data.chatId as string,
+                title: data.title as string,
+                updatedAt: new Date().toISOString(),
+                editsRemaining: editsRef.current,
+              })
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[CHAT] Fetch error:', err)
+    } finally {
+      setIsStreaming(false)
+    }
+  }, [
+    inputValue, isStreaming, hasMessages, isAnonymous, anonymousAllowed,
+    messages, onMessagesChange, onInputChange, onGenerate, onChatCreated,
+    identityId, anonymousId, activeChatId, user.type,
+  ])
+
+  // TODO Phase 2.1: replace with real edit API call
   const handleRegenerate = useCallback(() => {
-    const lastAI = [...messages].reverse().find((m) => m.role === 'assistant')
-    if (!lastAI) return
-    const aiText = MOCK_AI_RESPONSES[(aiTurnCount + 1) % MOCK_AI_RESPONSES.length]
-    mockStream(aiText, () => {
-      const updated = messages.map((m) =>
-        m.id === lastAI.id ? { ...m, content: aiText } : m
-      )
-      onMessagesChange(updated)
-    })
-  }, [messages, aiTurnCount, mockStream, onMessagesChange])
+    console.log('[CHAT] Regenerate not yet wired to real API — Phase 2.1')
+  }, [])
 
   return (
     <div className="flex flex-col h-full">

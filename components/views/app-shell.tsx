@@ -26,7 +26,6 @@ import { generateGradient } from '@/lib/pfp-gradient'
 import { useEnvironment } from '@/components/providers/environment-provider'
 import { usePrivy } from '@privy-io/react-auth'
 import {
-  MOCK_CHATS,
   type MockChat,
   type MockUser,
   type MockMessage,
@@ -212,9 +211,8 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     return () => clearTimeout(t)
   }, [skipSplash])
 
-  // Load chats based on user type. Anonymous users start empty (or restore from
-  // localStorage if they've generated before). Registered users get mock data
-  // until Phase 2 wires real DB chat history.
+  // Load chats based on user type. Anonymous: restore from localStorage.
+  // Registered: fetch from DB. Only fires when user type changes (sign in/out).
   useEffect(() => {
     if (!realUser) return
 
@@ -227,21 +225,48 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
           const parsed = JSON.parse(raw)
           const loaded: MockChat[] = parsed.chats || []
           setChats(loaded)
-          setActiveChatId(loaded[0]?.id ?? '')
+          if (!initialChatId) setActiveChatId(loaded[0]?.id ?? '')
         } catch {
           setChats([])
-          setActiveChatId('')
+          if (!initialChatId) setActiveChatId('')
         }
       } else {
         setChats([])
-        setActiveChatId('')
+        if (!initialChatId) setActiveChatId('')
       }
     } else {
-      // privy / farcaster — TODO Phase 2: replace with DB fetch
-      setChats(MOCK_CHATS)
-      setActiveChatId(MOCK_CHATS[0]?.id ?? '')
+      // privy / farcaster — fetch real chats from DB
+      const id = realUser.type === 'farcaster'
+        ? String(realUser.farcaster!.fid)
+        : realUser.privyId
+      if (!id) return
+
+      fetch(`/api/chats?identityId=${encodeURIComponent(id)}&userType=${realUser.type}`)
+        .then((r) => r.json())
+        .then((data) => {
+          const loaded: MockChat[] = (data.chats || []).map((c: Record<string, unknown>) => ({
+            id: c.id as string,
+            title: c.title as string,
+            updatedAt: (c.updatedAt as string) ?? new Date().toISOString(),
+            editsRemaining: (c.editsRemaining as number) ?? 10,
+          }))
+          setChats(loaded)
+          if (!initialChatId) setActiveChatId(loaded[0]?.id ?? '')
+        })
+        .catch(() => {
+          setChats([])
+          if (!initialChatId) setActiveChatId('')
+        })
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [realUser?.type])
+
+  // Sync edits state with the active chat's remaining edits
+  useEffect(() => {
+    if (!activeChatId) return
+    const chat = chats.find((c) => c.id === activeChatId)
+    if (chat) setEdits(chat.editsRemaining)
+  }, [activeChatId, chats])
 
   // Promote pending chat to saved chats when the first message is sent.
   useEffect(() => {
@@ -344,6 +369,14 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     setMessages([])
   }, [])
 
+  // Called by ChatView when Gemini creates a new chat in the DB
+  const handleChatCreated = useCallback((chat: MockChat) => {
+    setChats((prev) => [chat, ...prev.filter((c) => c.id !== chat.id)])
+    setActiveChatId(chat.id)
+    setEdits(chat.editsRemaining)
+    router.push(`/chat/${chat.id}`)
+  }, [router])
+
   const isMobile = realUser?.type === 'farcaster' && realUser.platformType === 'mobile'
 
   const user: MockUser = {
@@ -426,6 +459,14 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
             onLogin={login}
             onGenerate={user.type === 'anonymous' ? () => setCredits(0) : undefined}
             isMobile={isMobile}
+            identityId={
+              realUser?.type === 'farcaster' ? String(realUser.farcaster!.fid)
+              : realUser?.type === 'privy' ? (realUser.privyId ?? null)
+              : null
+            }
+            anonymousId={anonymousId}
+            activeChatId={activeChatId}
+            onChatCreated={handleChatCreated}
           />
         )}
       </div>
