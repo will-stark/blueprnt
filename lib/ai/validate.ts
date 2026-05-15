@@ -1,12 +1,12 @@
 import type { ValidationResult } from './types'
 
-// Accept em dash (—), en dash (–), or regular hyphen (-) — model may vary
+// Accept em dash (—), en dash (–), hyphen (-), or colon (:) — model may vary
 const SECTION_PATTERNS = [
-  /^## Section 1\s*[—–-]/m,
-  /^## Section 2\s*[—–-]/m,
-  /^## Section 3\s*[—–-]/m,
-  /^## Section 4\s*[—–-]/m,
-  /^## Section 5\s*[—–-]/m,
+  /^## Section 1\s*[—–:\-]/m,
+  /^## Section 2\s*[—–:\-]/m,
+  /^## Section 3\s*[—–:\-]/m,
+  /^## Section 4\s*[—–:\-]/m,
+  /^## Section 5\s*[—–:\-]/m,
 ]
 
 const SECTION_LABELS = [

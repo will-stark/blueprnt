@@ -110,33 +110,9 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Anonymous path ─────────────────────────────────────────────────────────
-  // Anonymous generation is currently paused. Remove the early return to re-enable.
+  // Anonymous generation is currently paused — all anonymous users are prompted to sign in.
   if (userType === 'anonymous') {
     return Response.json({ error: 'auth_required' }, { status: 401 })
-  }
-  if (userType === 'anonymous') {
-    if (!anonymousId) return Response.json({ error: 'Missing anonymousId' }, { status: 400 })
-
-    const filterError = applyHardFilters(message)
-    if (filterError) return Response.json({ error: filterError }, { status: 400 })
-
-    const limitHit = await isAnonymousLimitHit(anonymousId)
-    if (limitHit) return Response.json({ error: 'no_credits' }, { status: 402 })
-
-    const payload = buildPrompt(
-      'new_blueprint',
-      'generic',
-      message,
-      { currentBlueprint: null, originalUserMessage: null },
-    )
-
-    console.log('[GENERATE] Anon stream start. msgHash=%s', hashForLogging(message))
-    return buildStream(payload, async (fullText) => {
-      const validation = validateBlueprint(fullText)
-      if (!validation.valid) throwBlueprintError(fullText, validation.reason ?? 'invalid')
-      await logAnonymousGeneration(anonymousId)
-      console.log('[GENERATE] Anon done. duration=%dms', Date.now() - t0)
-    })
   }
 
   // ── Registered path ────────────────────────────────────────────────────────
@@ -187,7 +163,13 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: 'Message not found' }, { status: 404 })
     }
 
-    const context = await loadBlueprintContext({ chatId, activeBlueprintMessageId, activeBranchIndex })
+    let context: { currentBlueprint: string | null; originalUserMessage: string | null }
+    try {
+      context = await loadBlueprintContext({ chatId, activeBlueprintMessageId, activeBranchIndex })
+    } catch (err) {
+      console.error('[GENERATE] Failed to load context for regen:', err)
+      return Response.json({ error: 'Failed to load blueprint context' }, { status: 500 })
+    }
     const payload = buildPrompt('regenerate', platform, message, context)
 
     console.log('[GENERATE] Regen stream start. chatId=%s msgHash=%s',
@@ -236,13 +218,19 @@ export async function POST(req: NextRequest) {
     if (chat.editsRemaining <= 0) return Response.json({ error: 'no_edits' }, { status: 402 })
   }
 
-  const context = isNewChat
-    ? { currentBlueprint: null, originalUserMessage: null }
-    : await loadBlueprintContext({
-        chatId: chatId!,
-        activeBlueprintMessageId,
-        activeBranchIndex,
-      })
+  let context: { currentBlueprint: string | null; originalUserMessage: string | null }
+  try {
+    context = isNewChat
+      ? { currentBlueprint: null, originalUserMessage: null }
+      : await loadBlueprintContext({
+          chatId: chatId!,
+          activeBlueprintMessageId,
+          activeBranchIndex,
+        })
+  } catch (err) {
+    console.error('[GENERATE] Failed to load blueprint context:', err)
+    return Response.json({ error: 'Failed to load blueprint context' }, { status: 500 })
+  }
 
   const payload = buildPrompt(kind, platform, message, context)
 
@@ -290,10 +278,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await db.insert(messages).values([
-      { chatId: finalChatId, role: 'user', content: encryptedMessage },
-      { chatId: finalChatId, role: 'assistant', content: encryptedFullText },
-    ])
+    // Insert separately so defaultNow() gives them distinct timestamps —
+    // context loading depends on createdAt order being user < assistant
+    await db.insert(messages).values({ chatId: finalChatId, role: 'user', content: encryptedMessage })
+    await db.insert(messages).values({ chatId: finalChatId, role: 'assistant', content: encryptedFullText })
 
     await logGeneration(identityId, kind)
     await maybeFireCapAlert(dailyCount + 1, cap)

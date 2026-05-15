@@ -52,6 +52,15 @@ export function classifyRequest(input: ClassifyInput): ClassifyResult {
   const { message, chatId, isRegenerate } = body
   const lower = message.toLowerCase()
 
+  // Regenerate re-uses the original user message — skip off-topic checks entirely
+  if (isRegenerate) {
+    return {
+      kind: 'regenerate',
+      platform: detectPlatform(lower),
+      isSecondStrike: false,
+    }
+  }
+
   const isBlocked =
     message.trim().length < MIN_LENGTH ||
     BLOCKLIST.some((w) => lower.includes(w)) ||
@@ -62,14 +71,6 @@ export function classifyRequest(input: ClassifyInput): ClassifyResult {
       kind: 'off_topic',
       platform: detectPlatform(lower),
       isSecondStrike: priorStrikeWithinWindow,
-    }
-  }
-
-  if (isRegenerate) {
-    return {
-      kind: 'regenerate',
-      platform: detectPlatform(lower),
-      isSecondStrike: false,
     }
   }
 
