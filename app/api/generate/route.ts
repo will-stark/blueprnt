@@ -20,7 +20,7 @@ import { validateBlueprint } from '@/lib/ai/validate'
 import { alertDailyCapWarning } from '@/lib/alerts'
 import type { GenerateRequestBody, PromptPayload } from '@/lib/ai/types'
 
-export const maxDuration = 60
+export const maxDuration = 120
 
 const GIFTED_CYCLE_DAYS = 7
 const SSE_HEADERS = {

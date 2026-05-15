@@ -19,9 +19,9 @@ export async function streamFromGroq(
 
   const ac = new AbortController()
   const timer = setTimeout(() => {
-    console.warn(`[GROQ] Timeout after 50s — aborting model ${model}`)
+    console.warn(`[GROQ] Timeout after 90s — aborting model ${model}`)
     ac.abort()
-  }, 50_000)
+  }, 90_000)
 
   let res: Response
   try {
@@ -39,7 +39,7 @@ export async function streamFromGroq(
         ],
         stream: true,
         temperature: 0.7,
-        max_tokens: 8192,
+        max_tokens: 16384,
       }),
       signal: ac.signal,
     })
