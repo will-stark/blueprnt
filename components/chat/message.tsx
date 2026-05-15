@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Copy, RefreshCw, Check, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface UserMessageProps {
@@ -78,7 +79,7 @@ export function AIMessage({
             transition: 'opacity 0.2s ease',
           }}
         >
-          <ReactMarkdown>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
         </div>
 
         {/* Action buttons — only after streaming completes */}

@@ -234,6 +234,42 @@
   margin: 1.5em 0;
 }
 
+/* Tables — scroll horizontally on narrow viewports */
+.blueprnt-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 1em;
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.blueprnt-prose thead tr {
+  background-color: var(--bg-raised);
+}
+
+.blueprnt-prose th,
+.blueprnt-prose td {
+  padding: 8px 12px;
+  text-align: left;
+  border: 0.5px solid var(--border);
+  white-space: nowrap;
+}
+
+.blueprnt-prose th {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.blueprnt-prose td {
+  color: var(--text-secondary);
+}
+
+.blueprnt-prose tbody tr:nth-child(even) {
+  background-color: var(--bg-raised);
+}
+
 /* Streaming cursor */
 .streaming-cursor::after {
   content: '▋';
