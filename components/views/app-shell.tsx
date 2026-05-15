@@ -144,23 +144,6 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
       .catch(() => {})
   }, [realUser])
 
-  // Check admin status once when a non-anonymous user is detected
-  useEffect(() => {
-    if (!realUser || realUser.type === 'anonymous') { setIsAdmin(false); return }
-
-    const identityId =
-      realUser.type === 'farcaster'
-        ? String(realUser.farcaster!.fid)
-        : realUser.privyId!
-    const email = realUser.email ?? ''
-
-    fetch(
-      `/api/admin/check?identityType=${realUser.type}&identityId=${encodeURIComponent(identityId)}&email=${encodeURIComponent(email)}`
-    )
-      .then((r) => r.json())
-      .then((data) => setIsAdmin(!!data.isAdmin))
-      .catch(() => {})
-  }, [realUser])
 
   // Ref so the poll closure can always read the current activeChatId without restarting
   const activeChatIdRef = useRef(activeChatId)
@@ -193,6 +176,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
         const data = await res.json()
         if (typeof data.creditsRemaining === 'number') setCredits(data.creditsRemaining)
         if (typeof data.editsRemaining === 'number') setEdits(data.editsRemaining)
+        if (typeof data.isAdmin === 'boolean') setIsAdmin(data.isAdmin)
         retries = 0
       } catch {
         retries++

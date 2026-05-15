@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    console.log('[STATE] OK: credits=%d edits=%s', user.creditsRemaining, editsRemaining ?? 'n/a')
+    console.log('[STATE] OK: credits=%d edits=%s isAdmin=%s', user.creditsRemaining, editsRemaining ?? 'n/a', user.isAdmin)
     return NextResponse.json({
       userType: identityType,
       anonymousAllowed,
@@ -91,6 +91,7 @@ export async function GET(req: NextRequest) {
       editsRemaining,
       giftedCycleExpiresAt,
       creditCycleExpiresAt: user.creditCycleExpiresAt,
+      isAdmin: user.isAdmin,
     })
   } catch (err) {
     console.error('[STATE] Error: %s', err instanceof Error ? err.message : String(err))
