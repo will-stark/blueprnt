@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { users, chats, events } from '@/lib/db/schema'
 import { desc, eq } from 'drizzle-orm'
+import { isAdmin } from '@/lib/auth/is-admin'
 
 // Module-level cache so the /api/state poll (every 10s) doesn't hammer the DB
 let anonAllowedCache: { value: boolean; at: number } | null = null
@@ -83,7 +84,15 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    console.log('[STATE] OK: credits=%d edits=%s isAdmin=%s', user.creditsRemaining, editsRemaining ?? 'n/a', user.isAdmin)
+    // Check env-var admin config on every poll — takes effect without re-login
+    const adminFromEnv = isAdmin(identityType, identityId, user.email ?? undefined)
+    const isAdminUser = user.isAdmin || adminFromEnv
+    if (!user.isAdmin && adminFromEnv) {
+      // Sync DB so sidebar shows without waiting for next upsert
+      await db.update(users).set({ isAdmin: true }).where(eq(users.id, user.id))
+    }
+
+    console.log('[STATE] OK: credits=%d edits=%s isAdmin=%s (env=%s)', user.creditsRemaining, editsRemaining ?? 'n/a', isAdminUser, adminFromEnv)
     return NextResponse.json({
       userType: identityType,
       anonymousAllowed,
@@ -91,7 +100,7 @@ export async function GET(req: NextRequest) {
       editsRemaining,
       giftedCycleExpiresAt,
       creditCycleExpiresAt: user.creditCycleExpiresAt,
-      isAdmin: user.isAdmin,
+      isAdmin: isAdminUser,
     })
   } catch (err) {
     console.error('[STATE] Error: %s', err instanceof Error ? err.message : String(err))
