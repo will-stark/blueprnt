@@ -1,7 +1,7 @@
 'use client'
 
 import { Menu, Gift, HelpCircle } from 'lucide-react'
-import { Logo } from '@/components/ui/logo'
+import { Logo, LogoMark } from '@/components/ui/logo'
 import { Pill } from '@/components/ui/pill'
 import { UserPFP } from '@/components/ui/user-pfp'
 import type { MockUser } from '@/lib/mock-data'
@@ -53,7 +53,7 @@ export function Header({
         >
           <Menu className="w-5 h-5" />
         </button>
-        <Logo size="header" />
+        {hasFirstMessage ? <LogoMark size={22} /> : <Logo size="header" />}
       </div>
 
       {/* Right */}
