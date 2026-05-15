@@ -101,14 +101,20 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
           })
           console.log('[FC-SUCCESS] User state set to Farcaster:', { fid: fc.fid, username: fc.username })
 
-          // Fire-and-forget — do not block rendering
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const fca = fc as any
-          const fcWalletAddress: string | undefined =
-            fca.verifiedAddresses?.ethAddresses?.[0] ??
-            fca.custodyAddress ??
-            fca.custody ??
-            fca.wallet?.address
+          // Get primary transaction wallet (the wallet used in Warpcast for transactions)
+          let fcWalletAddress: string | undefined
+          try {
+            fcWalletAddress = await sdk.wallet.getAddress()
+            console.log('[FC-DEBUG] Got primary wallet address from sdk.wallet.getAddress()')
+          } catch {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const fca = fc as any
+            fcWalletAddress =
+              fca.verifiedAddresses?.ethAddresses?.[0] ??
+              fca.custodyAddress ??
+              fca.custody
+            console.log('[FC-DEBUG] Fell back to static wallet address')
+          }
           console.log('[FC-DEBUG] Calling upsert-user API...')
           fetch('/api/auth/upsert-user', {
             method: 'POST',

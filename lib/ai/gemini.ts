@@ -1,6 +1,6 @@
 import type { PromptPayload } from './types'
 
-const PRIMARY_MODEL = 'gemini-2.5-flash-preview-05-20'
+const PRIMARY_MODEL = 'gemini-2.5-flash'
 const FALLBACK_MODEL = 'gemini-2.0-flash'
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
@@ -47,6 +47,8 @@ export async function streamFromGemini(
   }
 
   if (!res.ok) {
+    const errorText = await res.text().catch(() => '(unreadable)')
+    console.error(`[GEMINI] HTTP ${res.status} from model ${model}:`, errorText.slice(0, 500))
     if (model !== FALLBACK_MODEL) {
       return streamFromGemini(payload, callbacks, FALLBACK_MODEL)
     }
