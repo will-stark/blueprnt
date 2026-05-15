@@ -1,9 +1,7 @@
 import type { BlueprintContext, Platform, PromptPayload, RequestKind } from './types'
 
-// Keep context short enough that system + user + max_tokens stays under Groq free-tier 12k TPM.
-// System prompt ~1100 tokens, max_tokens 8192 → leaves ~2700 tokens for user text (~10800 chars).
-// Blueprint context is the biggest variable — cap it generously at 6000 chars.
-const MAX_CONTEXT_CHARS = 6000
+// OpenAI gpt-4o-mini has 128k context — generous limit to preserve as much blueprint as possible.
+const MAX_CONTEXT_CHARS = 15_000
 
 function truncateBlueprint(text: string): string {
   if (text.length <= MAX_CONTEXT_CHARS) return text
