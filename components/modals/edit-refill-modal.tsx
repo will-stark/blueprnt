@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import { Check, Loader2, AlertCircle } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
 import { SKU } from '@/lib/contracts'
 import { usePayment } from '@/hooks/use-payment'
+import { WalletSummary } from '@/components/payments/wallet-summary'
 import type { UserType } from '@/lib/mock-data'
 
 interface EditRefillModalProps {
@@ -31,6 +33,7 @@ export function EditRefillModal({
   chatId,
   onSuccess,
 }: EditRefillModalProps) {
+  const [refreshKey, setRefreshKey] = useState(0)
   const { status, error, pay, reset } = usePayment()
 
   const isBusy = status !== 'idle' && status !== 'success' && status !== 'error'
@@ -46,6 +49,7 @@ export function EditRefillModal({
       walletAddress,
       chatId,
       onSuccess: ({ editsAdded }) => {
+        setRefreshKey((k) => k + 1)
         onSuccess?.(editsAdded ?? 10)
       },
     })
@@ -94,6 +98,9 @@ export function EditRefillModal({
             Network: Base · USDC
           </span>
         </div>
+
+        {/* Wallet balance panel */}
+        <WalletSummary walletAddress={walletAddress} refreshTrigger={refreshKey} />
 
         {/* SKU detail */}
         <div
@@ -159,14 +166,8 @@ export function EditRefillModal({
           </button>
         )}
 
-        {!walletAddress && !isBusy && (
-          <p className="text-[12px] text-center" style={{ color: 'var(--danger)' }}>
-            No wallet connected. Please sign in with a wallet to purchase.
-          </p>
-        )}
-
         <p className="text-[12px] text-center" style={{ color: 'var(--text-muted)' }}>
-          A small amount of ETH is needed for gas. Payments are onchain and non-refundable.
+          Payments are onchain and non-refundable.
         </p>
       </div>
     </Modal>

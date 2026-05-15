@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/modal'
 import { SlideUp } from '@/components/ui/slide-up'
 import { SKU, type SkuId } from '@/lib/contracts'
 import { usePayment } from '@/hooks/use-payment'
+import { WalletSummary } from '@/components/payments/wallet-summary'
 import type { UserType } from '@/lib/mock-data'
 
 const TIP_AMOUNTS = [
@@ -31,6 +32,7 @@ interface TipModalProps {
 
 export function TipModal({ onClose, userType, identityId, walletAddress }: TipModalProps) {
   const [selected, setSelected] = useState<number | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
   const { status, error, pay, reset } = usePayment()
 
   const isBusy = status !== 'idle' && status !== 'success' && status !== 'error'
@@ -45,6 +47,9 @@ export function TipModal({ onClose, userType, identityId, walletAddress }: TipMo
       userType: userType as 'farcaster' | 'privy',
       identityId,
       walletAddress,
+      onSuccess: () => {
+        setRefreshKey((k) => k + 1)
+      },
     })
   }
 
@@ -96,6 +101,9 @@ export function TipModal({ onClose, userType, identityId, walletAddress }: TipMo
             Network: Base · USDC
           </span>
         </div>
+
+        {/* Wallet balance panel */}
+        <WalletSummary walletAddress={walletAddress} refreshTrigger={refreshKey} />
 
         {/* Amount selector */}
         <div className="grid grid-cols-3 gap-2">
@@ -152,14 +160,8 @@ export function TipModal({ onClose, userType, identityId, walletAddress }: TipMo
           </button>
         )}
 
-        {!walletAddress && !isBusy && (
-          <p className="text-[12px] text-center" style={{ color: 'var(--danger)' }}>
-            No wallet connected. Please sign in with a wallet to send a tip.
-          </p>
-        )}
-
         <p className="text-[12px] text-center" style={{ color: 'var(--text-muted)' }}>
-          A small amount of ETH is needed for gas. Tips are onchain and non-refundable.
+          Tips are onchain and non-refundable.
         </p>
       </div>
     </Modal>

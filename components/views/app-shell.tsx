@@ -98,7 +98,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   const [messages, setMessages] = useState<MockMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [credits, setCredits] = useState(0)
-  const [edits, setEdits] = useState(10)
+  const [edits, setEdits] = useState(3)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [chatMenuOpenId, setChatMenuOpenId] = useState<string | null>(null)
   const [activeModal, setActiveModal] = useState<ActiveModal>('none')
@@ -245,7 +245,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
             id: c.id as string,
             title: c.title as string,
             updatedAt: (c.updatedAt as string) ?? new Date().toISOString(),
-            editsRemaining: (c.editsRemaining as number) ?? 10,
+            editsRemaining: (c.editsRemaining as number) ?? 3,
           }))
           setChats(loaded)
           if (!initialChatId) setActiveChatId(loaded[0]?.id ?? '')
@@ -345,7 +345,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
       id,
       title: 'New chat',
       updatedAt: new Date().toISOString(),
-      editsRemaining: 10,
+      editsRemaining: 3,
     }
 
     // If already on an unsaved pending chat with no messages, just replace it.
@@ -601,7 +601,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
           onClose={close}
           onConfirm={() => {
             const id = `chat_${Date.now()}`
-            const newPending: MockChat = { id, title: 'New chat', updatedAt: new Date().toISOString(), editsRemaining: 10 }
+            const newPending: MockChat = { id, title: 'New chat', updatedAt: new Date().toISOString(), editsRemaining: 3 }
             setPendingChat(newPending)
             setActiveChatId(id)
             setMessages([])

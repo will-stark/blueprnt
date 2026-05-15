@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/modal'
 import { CREDIT_OPTIONS } from '@/lib/mock-data'
 import { SKU, type SkuId } from '@/lib/contracts'
 import { usePayment } from '@/hooks/use-payment'
+import { WalletSummary } from '@/components/payments/wallet-summary'
 import type { UserType } from '@/lib/mock-data'
 
 interface PurchaseModalProps {
@@ -35,6 +36,7 @@ export function PurchaseModal({
   onSuccess,
 }: PurchaseModalProps) {
   const [selected, setSelected] = useState<number | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
   const { status, error, pay, reset } = usePayment()
 
   const isBusy = status !== 'idle' && status !== 'success' && status !== 'error'
@@ -50,6 +52,7 @@ export function PurchaseModal({
       identityId,
       walletAddress,
       onSuccess: ({ creditsAdded }) => {
+        setRefreshKey((k) => k + 1)
         onSuccess?.(creditsAdded ?? 0)
       },
     })
@@ -99,6 +102,9 @@ export function PurchaseModal({
             Network: Base · USDC
           </span>
         </div>
+
+        {/* Wallet balance panel */}
+        <WalletSummary walletAddress={walletAddress} refreshTrigger={refreshKey} />
 
         {/* Credit options */}
         <div className="space-y-2">
@@ -172,14 +178,8 @@ export function PurchaseModal({
           </button>
         )}
 
-        {!walletAddress && !isBusy && (
-          <p className="text-[12px] text-center" style={{ color: 'var(--danger)' }}>
-            No wallet connected. Please sign in with a wallet to purchase.
-          </p>
-        )}
-
         <p className="text-[12px] text-center" style={{ color: 'var(--text-muted)' }}>
-          A small amount of ETH is needed for gas. Payments are onchain and non-refundable.
+          Payments are onchain and non-refundable.
         </p>
       </div>
     </Modal>

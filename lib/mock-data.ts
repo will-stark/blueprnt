@@ -83,7 +83,7 @@ export const MOCK_PRIVY_USER: MockUser = {
   pfpUrl: null,
   pfpGradient: 'linear-gradient(135deg, #059669 0%, #0EA5E9 100%)',
   credits: 3,
-  edits: 10,
+  edits: 3,
   isAdmin: false,
 }
 
@@ -397,10 +397,10 @@ export const MOCK_TICKETS: MockTicket[] = [
 
 // Credit purchase options
 export const CREDIT_OPTIONS = [
-  { tier: 0, label: 'Single', price: '$0.50', blueprints: 1, edits: 10 },
-  { tier: 1, label: 'Pack — $1', price: '$1.00', blueprints: 2, edits: 10 },
-  { tier: 2, label: 'Pack — $5', price: '$5.00', blueprints: 12, edits: 10, perGen: '$0.42' },
-  { tier: 3, label: 'Pack — $10', price: '$10.00', blueprints: 25, edits: 10, perGen: '$0.40' },
+  { tier: 0, label: 'Single', price: '$0.50', blueprints: 1, edits: 3 },
+  { tier: 1, label: 'Pack — $1', price: '$1.00', blueprints: 2, edits: 3 },
+  { tier: 2, label: 'Pack — $5', price: '$5.00', blueprints: 12, edits: 3, perGen: '$0.42' },
+  { tier: 3, label: 'Pack — $10', price: '$10.00', blueprints: 25, edits: 3, perGen: '$0.40' },
 ]
 
 // Mock AI responses for streaming simulation

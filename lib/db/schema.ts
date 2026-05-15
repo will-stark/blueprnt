@@ -38,7 +38,7 @@ export const chats = pgTable('chats', {
   id:             uuid('id').primaryKey().defaultRandom(),
   userId:         uuid('user_id').references(() => users.id).notNull(),
   title:          text('title').notNull().default('New chat'),
-  editsRemaining: integer('edits_remaining').notNull().default(10),
+  editsRemaining: integer('edits_remaining').notNull().default(3),
   createdAt:      timestamp('created_at').defaultNow(),
   updatedAt:      timestamp('updated_at').defaultNow(),
 })

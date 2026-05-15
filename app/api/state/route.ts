@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
 
         // If edits are 0 and there's an active gifted cycle, grant a batch
         if (editsRemaining === 0 && giftedCycleExpiresAt && giftedCycleExpiresAt > now) {
-          await db.update(chats).set({ editsRemaining: 5 }).where(eq(chats.id, chatId))
+          await db.update(chats).set({ editsRemaining: 3 }).where(eq(chats.id, chatId))
           editsRemaining = 5
         }
       }
