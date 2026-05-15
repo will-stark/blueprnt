@@ -17,7 +17,12 @@ const SECTION_LABELS = [
   '## Section 5 —',
 ]
 
-const COST_TIERS = ['Free / OSS', 'Indie Builder', 'At Scale']
+// Flexible regex matching so minor model formatting variations don't fail validation
+const COST_TIER_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
+  { label: 'Free / OSS', pattern: /free\s*\/\s*oss/i },
+  { label: 'Indie Builder', pattern: /indie[\s-]builder/i },
+  { label: 'At Scale', pattern: /at\s+scale/i },
+]
 
 export function validateBlueprint(text: string): ValidationResult {
   const missing: string[] = []
@@ -54,15 +59,18 @@ export function validateBlueprint(text: string): ValidationResult {
     }
   }
 
-  // Section 5 must have all three cost tiers
+  // Section 5 must have all three cost tiers (flexible matching for model formatting variants)
   const section5Start = positions[4]
   const section5Content = text.slice(section5Start)
-  const missingTiers = COST_TIERS.filter((tier) => !section5Content.includes(tier))
+  const missingTiers = COST_TIER_PATTERNS
+    .filter(({ pattern }) => !pattern.test(section5Content))
+    .map(({ label }) => `Cost tier: ${label}`)
 
   if (missingTiers.length > 0) {
+    console.warn('[VALIDATE] Missing tiers:', missingTiers, '| Section 5 preview:', section5Content.slice(0, 300))
     return {
       valid: false,
-      missing: missingTiers.map((t) => `Cost tier: ${t}`),
+      missing: missingTiers,
       reason: 'Section 5 is missing cost tiers',
     }
   }

@@ -1,6 +1,47 @@
 'use client'
 
 import { useRef, useEffect, useState, useCallback } from 'react'
+
+// Reveal stream content gradually at ~1000 chars/sec instead of dumping full chunks
+const CHARS_PER_FRAME = 18
+
+function useStreamReveal() {
+  const [content, setContent] = useState('')
+  const pendingRef = useRef('')
+  const displayedRef = useRef('')
+  const rafRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null)
+
+  const tick = useCallback(() => {
+    if (!pendingRef.current) {
+      rafRef.current = null
+      return
+    }
+    const slice = pendingRef.current.slice(0, CHARS_PER_FRAME)
+    pendingRef.current = pendingRef.current.slice(CHARS_PER_FRAME)
+    displayedRef.current += slice
+    setContent(displayedRef.current)
+    rafRef.current = requestAnimationFrame(tick)
+  }, [])
+
+  const addChunk = useCallback((chunk: string) => {
+    pendingRef.current += chunk
+    if (rafRef.current === null) {
+      rafRef.current = requestAnimationFrame(tick)
+    }
+  }, [tick])
+
+  const reset = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+    pendingRef.current = ''
+    displayedRef.current = ''
+    setContent('')
+  }, [])
+
+  return { content, addChunk, reset }
+}
 import { AlertTriangle } from 'lucide-react'
 import { ChatBox } from '@/components/chat/chat-box'
 import { PromptTips } from '@/components/chat/prompt-tips'
@@ -51,7 +92,7 @@ export function ChatView({
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
-  const [streamingContent, setStreamingContent] = useState('')
+  const { content: streamingContent, addChunk, reset: resetStreamingContent } = useStreamReveal()
   const [slideUp, setSlideUp] = useState<ActiveSlideUp>('none')
   const [activeBranchIndices, setActiveBranchIndices] = useState<Record<string, number>>({})
   const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null)
@@ -209,7 +250,7 @@ export function ChatView({
     onMessagesChange([...messages, userMsg])
     onInputChange('')
     setIsStreaming(true)
-    setStreamingContent('')
+    resetStreamingContent()
 
     try {
       const body: Record<string, unknown> = {
@@ -245,7 +286,7 @@ export function ChatView({
         const err = await response.json().catch(() => ({}))
         console.error('[CHAT] API error: status=%d error=%s', response.status, err.error)
         setIsStreaming(false)
-        setStreamingContent('')
+        resetStreamingContent()
 
         if (err.error === 'no_credits') {
           setSlideUp('zero_credits')
@@ -268,11 +309,12 @@ export function ChatView({
 
       await readStream(
         response,
-        (_chunk, accumulated) => setStreamingContent(accumulated),
+        (chunk) => addChunk(chunk),
         (accumulated, meta) => {
           console.log('[CHAT] Stream done: chatId=%s title=%s',
             meta.chatId ?? 'anon', meta.title ?? '—')
           setErrorMsg(null)
+          resetStreamingContent()
 
           const assistantMsg: MockMessage = {
             id: (Date.now() + 1).toString(),
@@ -281,7 +323,6 @@ export function ChatView({
             createdAt: new Date().toISOString(),
           }
           onMessagesChange((prev: MockMessage[]) => [...prev, assistantMsg])
-          setStreamingContent('')
 
           if (isAnonymous) {
             const anonChat: MockChat = {
@@ -313,7 +354,7 @@ export function ChatView({
         },
         (msg) => {
           setIsStreaming(false)
-          setStreamingContent('')
+          resetStreamingContent()
           if (msg) setErrorMsg(msg)
         },
       )
@@ -328,6 +369,7 @@ export function ChatView({
     messages, onMessagesChange, onInputChange, onGenerate, onChatCreated, onEditsUpdate,
     identityId, anonymousId, activeChatId, user.type, activeBranchIndices,
     startStallTimer, clearStallTimer, readStream, pendingAutoSend,
+    addChunk, resetStreamingContent,
   ])
 
   // Keep ref fresh so the effect below can call the latest version without circular deps
@@ -363,7 +405,7 @@ export function ChatView({
       messageId.slice(0, 8) + '…', activeChatId.slice(0, 8) + '…')
 
     setRegeneratingMessageId(messageId)
-    setStreamingContent('')
+    resetStreamingContent()
     startStallTimer()
 
     try {
@@ -388,15 +430,16 @@ export function ChatView({
         if (err.error === 'no_edits') setSlideUp('zero_edits')
         clearStallTimer()
         setRegeneratingMessageId(null)
-        setStreamingContent('')
+        resetStreamingContent()
         return
       }
 
       await readStream(
         response,
-        (_chunk, accumulated) => setStreamingContent(accumulated),
+        (chunk) => addChunk(chunk),
         (accumulated, meta) => {
           console.log('[CHAT] Regenerate done: messageId=%s len=%d', messageId.slice(0, 8) + '…', accumulated.length)
+          resetStreamingContent()
           const newBranch = { content: accumulated, timestamp: new Date().toISOString() }
           onMessagesChange((prev: MockMessage[]) =>
             prev.map((m) => {
@@ -408,7 +451,6 @@ export function ChatView({
           const currentBranches = messages.find((m) => m.id === messageId)?.branches ?? []
           const newIdx = 1 + currentBranches.length
           setActiveBranchIndices((prev) => ({ ...prev, [messageId]: newIdx }))
-          setStreamingContent('')
           // Use server-returned editsRemaining if available; otherwise optimistically decrement
           if (typeof meta.editsRemaining === 'number') {
             editsRef.current = meta.editsRemaining as number
@@ -419,7 +461,7 @@ export function ChatView({
         },
         () => {
           setRegeneratingMessageId(null)
-          setStreamingContent('')
+          resetStreamingContent()
         },
       )
     } catch (err) {
@@ -433,6 +475,7 @@ export function ChatView({
     activeChatId, isStreaming, regeneratingMessageId, isAnonymous, messages, activeBranchIndices,
     identityId, user.type, onMessagesChange, onEditsUpdate,
     startStallTimer, clearStallTimer, readStream,
+    addChunk, resetStreamingContent,
   ])
 
   const handleBranchNav = useCallback((messageId: string, direction: -1 | 1) => {
