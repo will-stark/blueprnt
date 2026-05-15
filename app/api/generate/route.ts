@@ -15,7 +15,7 @@ import { hashForLogging } from '@/lib/logging'
 import { classifyRequest, applyHardFilters, applyEditFilters } from '@/lib/ai/classify'
 import { loadBlueprintContext } from '@/lib/ai/context'
 import { buildPrompt } from '@/lib/ai/prompt-builder'
-import { streamFromAI } from '@/lib/ai/stream'
+import { streamFromAI, generateFromAI } from '@/lib/ai/stream'
 import { validateBlueprint } from '@/lib/ai/validate'
 import { alertDailyCapWarning } from '@/lib/alerts'
 import type { GenerateRequestBody, PromptPayload } from '@/lib/ai/types'
@@ -52,15 +52,40 @@ function buildStream(
           try {
             const meta = await onComplete(fullText)
             send(controller, { done: true, ...(meta ?? {}) })
+            controller.close()
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err)
-            console.error('[GENERATE] onComplete error:', msg)
-            const clientMsg = msg === 'blueprint_invalid'
-              ? 'Generation failed. Please try again.'
-              : msg
-            send(controller, { done: true, error: clientMsg })
+            if (msg !== 'blueprint_invalid') {
+              console.error('[GENERATE] onComplete error:', msg)
+              send(controller, { done: true, error: msg })
+              controller.close()
+              return
+            }
+
+            // Blueprint was truncated — silent retry (1 extra API call max)
+            console.warn('[GENERATE] Blueprint truncated — silent retry')
+            send(controller, { retry: true })
+
+            try {
+              const retryText = await generateFromAI(payload)
+              const validation = validateBlueprint(retryText)
+              if (!validation.valid) {
+                throwBlueprintError(retryText, validation.reason ?? 'invalid')
+              }
+              // Stream retry content chunk-by-chunk so client UX matches normal flow
+              const CHUNK = 200
+              for (let i = 0; i < retryText.length; i += CHUNK) {
+                send(controller, { text: retryText.slice(i, i + CHUNK) })
+              }
+              const meta = await onComplete(retryText)
+              send(controller, { done: true, ...(meta ?? {}) })
+            } catch (retryErr) {
+              const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr)
+              console.error('[GENERATE] Retry also failed:', retryMsg)
+              send(controller, { done: true, error: 'Generation failed. Please try again.' })
+            }
+            controller.close()
           }
-          controller.close()
         },
         onError: (err) => {
           console.error('[GENERATE] Stream error:', err.message)

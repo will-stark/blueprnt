@@ -18,7 +18,9 @@ export const outputStructure = `Write exactly five sections in this order. Use t
 ## Section 4 — [Every screen and flow]
 ## Section 5 — [What it costs and how to build it]
 
-Never skip, reorder, merge, or use the Section N label for your own subsections. The blueprint must be complete: a developer who reads this spec should not need to ask a single clarifying question before writing code.`
+Never skip, reorder, merge, or use the Section N label for your own subsections. The blueprint must be complete: a developer who reads this spec should not need to ask a single clarifying question before writing code.
+
+CRITICAL: All five sections are required. If you are running low on space, compress earlier sections rather than omitting Section 5. A blueprint missing Section 5 is invalid.`
 
 export const writingRules = `### Voice and editorial standard
 Write as a technical co-founder writing a handoff doc for their lead engineer the night before the build starts. Be authoritative, opinionated, and precise. Do not hedge. Do not write "you might want to consider" — write "use X because Y."

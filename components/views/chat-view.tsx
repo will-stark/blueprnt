@@ -172,6 +172,7 @@ export function ChatView({
     onText: (chunk: string, accumulated: string) => void,
     onDone: (accumulated: string, meta: Record<string, unknown>) => void,
     onError: (msg?: string) => void,
+    onRetry?: () => void,
   ) => {
     const reader = response.body!.getReader()
     const decoder = new TextDecoder()
@@ -195,6 +196,14 @@ export function ChatView({
           continue
         }
 
+        if (data.retry) {
+          // First attempt was truncated — clear partial content, server is retrying
+          accumulated = ''
+          onRetry?.()
+          console.log('[CHAT] Server retrying truncated blueprint')
+          startStallTimer()
+        }
+
         if (data.text) {
           if (!accumulated) clearStallTimer()
           accumulated += data.text as string
@@ -213,7 +222,7 @@ export function ChatView({
         }
       }
     }
-  }, [clearStallTimer])
+  }, [clearStallTimer, startStallTimer])
 
   const handleSend = useCallback(async () => {
     if (!inputValue.trim() || isStreaming || regeneratingMessageId) return
@@ -359,6 +368,7 @@ export function ChatView({
           resetStreamingContent()
           if (msg) setErrorMsg(msg)
         },
+        resetStreamingContent,
       )
     } catch (err) {
       console.error('[CHAT] Fetch error: %s', err instanceof Error ? err.message : String(err))
@@ -465,6 +475,7 @@ export function ChatView({
           setRegeneratingMessageId(null)
           resetStreamingContent()
         },
+        resetStreamingContent,
       )
     } catch (err) {
       console.error('[CHAT] Regenerate fetch error: %s', err instanceof Error ? err.message : String(err))

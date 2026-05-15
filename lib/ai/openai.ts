@@ -3,6 +3,44 @@ import type { PromptPayload, StreamCallbacks } from './types'
 const MODEL = 'gpt-4o-mini'
 const API_URL = 'https://api.openai.com/v1/chat/completions'
 
+// Non-streaming call — used for silent retry after a truncated stream
+export async function generateFromOpenAI(payload: PromptPayload): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) throw new Error('OPENAI_API_KEY not set')
+
+  const ac = new AbortController()
+  const timer = setTimeout(() => ac.abort(), 120_000)
+
+  let res: Response
+  try {
+    res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: payload.system },
+          { role: 'user', content: payload.user },
+        ],
+        stream: false,
+        temperature: 0.7,
+        max_tokens: 16000,
+      }),
+      signal: ac.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`OpenAI API error: ${res.status} — ${text.slice(0, 200)}`)
+  }
+
+  const json = await res.json()
+  return (json?.choices?.[0]?.message?.content as string | undefined) ?? ''
+}
+
 export async function streamFromOpenAI(
   payload: PromptPayload,
   callbacks: StreamCallbacks,
@@ -35,7 +73,7 @@ export async function streamFromOpenAI(
         ],
         stream: true,
         temperature: 0.7,
-        max_tokens: 8192,
+        max_tokens: 16000,
       }),
       signal: ac.signal,
     })
