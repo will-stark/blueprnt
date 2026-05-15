@@ -1,4 +1,15 @@
 import type { BlueprintContext, Platform, PromptPayload, RequestKind } from './types'
+
+// Keep context short enough that system + user + max_tokens stays under Groq free-tier 12k TPM.
+// System prompt ~1100 tokens, max_tokens 8192 → leaves ~2700 tokens for user text (~10800 chars).
+// Blueprint context is the biggest variable — cap it generously at 6000 chars.
+const MAX_CONTEXT_CHARS = 6000
+
+function truncateBlueprint(text: string): string {
+  if (text.length <= MAX_CONTEXT_CHARS) return text
+  return text.slice(0, MAX_CONTEXT_CHARS) + '\n\n[...truncated for context length]'
+}
+
 import {
   coreIdentity,
   editModeRules,
@@ -50,7 +61,7 @@ export function buildPrompt(
   }
 
   if (kind === 'edit_blueprint') {
-    const blueprint = context.currentBlueprint ?? ''
+    const blueprint = truncateBlueprint(context.currentBlueprint ?? '')
     const system = [
       coreIdentity,
       editModeRules,
@@ -71,7 +82,7 @@ export function buildPrompt(
   }
 
   if (kind === 'regenerate') {
-    const blueprint = context.currentBlueprint ?? ''
+    const blueprint = truncateBlueprint(context.currentBlueprint ?? '')
     const originalMessage = context.originalUserMessage ?? message
     const system = [
       coreIdentity,
