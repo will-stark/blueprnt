@@ -5,7 +5,7 @@ import { AlertTriangle } from 'lucide-react'
 import { ChatBox } from '@/components/chat/chat-box'
 import { PromptTips } from '@/components/chat/prompt-tips'
 import { UserMessage, AIMessage, AILoadingMessage, ZeroEditsMessage } from '@/components/chat/message'
-import { ZeroCreditsSlideUp, ContinueChatRegistered, ContinueChatAnon } from '@/components/modals/continue-chat-slideup'
+import { ZeroCreditsSlideUp, ContinueChatRegistered } from '@/components/modals/continue-chat-slideup'
 import type { MockUser, MockMessage, MockChat } from '@/lib/mock-data'
 
 interface ChatViewProps {
@@ -28,7 +28,7 @@ interface ChatViewProps {
   onEditsUpdate?: (edits: number) => void
 }
 
-type ActiveSlideUp = 'none' | 'zero_credits' | 'zero_edits' | 'anon_limit'
+type ActiveSlideUp = 'none' | 'zero_credits' | 'zero_edits'
 
 export function ChatView({
   user,
@@ -57,6 +57,12 @@ export function ChatView({
   const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null)
   const [showTakingLonger, setShowTakingLonger] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [pendingAutoSend, setPendingAutoSend] = useState(false)
+
+  // Track user type transitions for auto-send after login
+  const prevUserTypeRef = useRef(user.type)
+  // Stable ref so the login-transition effect can call the latest handleSend
+  const handleSendRef = useRef<() => Promise<void>>(async () => {})
 
   // Auto-clear error toast after 5s
   useEffect(() => {
@@ -174,17 +180,11 @@ export function ChatView({
       activeChatId ? activeChatId.slice(0, 10) + '…' : 'none')
 
     if (isAnonymous) {
-      if (!anonymousAllowed) {
-        console.log('[CHAT] Blocked: anonymous toggle off')
-        setSlideUp('account_prompt')
-        return
-      }
-      if (creditsRef.current === 0 || hasMessages) {
-        console.log('[CHAT] Blocked: anon limit (credits=%d hasMessages=%s)',
-          creditsRef.current, hasMessages)
-        setSlideUp('anon_limit')
-        return
-      }
+      // Generation is gated — prompt login and auto-send once they sign in
+      console.log('[CHAT] Blocked: anonymous user, prompting login')
+      setPendingAutoSend(true)
+      onLogin?.()
+      return
     }
 
     if (!isAnonymous && creditsRef.current === 0) {
@@ -324,11 +324,24 @@ export function ChatView({
       clearStallTimer()
     }
   }, [
-    inputValue, isStreaming, regeneratingMessageId, hasMessages, isAnonymous, anonymousAllowed,
+    inputValue, isStreaming, regeneratingMessageId, hasMessages, isAnonymous,
     messages, onMessagesChange, onInputChange, onGenerate, onChatCreated, onEditsUpdate,
     identityId, anonymousId, activeChatId, user.type, activeBranchIndices,
-    startStallTimer, clearStallTimer, readStream,
+    startStallTimer, clearStallTimer, readStream, pendingAutoSend,
   ])
+
+  // Keep ref fresh so the effect below can call the latest version without circular deps
+  handleSendRef.current = handleSend
+
+  // Fire pending send once an anonymous user successfully logs in
+  useEffect(() => {
+    const wasAnon = prevUserTypeRef.current === 'anonymous'
+    prevUserTypeRef.current = user.type
+    if (wasAnon && user.type !== 'anonymous' && identityId && pendingAutoSend) {
+      setPendingAutoSend(false)
+      setTimeout(() => handleSendRef.current(), 0)
+    }
+  }, [user.type, identityId, pendingAutoSend])
 
   const handleRegenerate = useCallback(async (messageId: string) => {
     if (!activeChatId || activeChatId.startsWith('chat_')) return
@@ -438,9 +451,9 @@ export function ChatView({
       {/* Scroll area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 pt-6 pb-4">
         {!hasMessages && !isStreaming ? (
-          <div className="flex flex-col items-center justify-center h-full gap-6 max-w-xl mx-auto">
+          <div className="flex flex-col items-center justify-center h-full gap-5 max-w-xl mx-auto">
             <h1
-              className="text-[32px] font-medium text-center text-balance"
+              className="text-[22px] md:text-[32px] font-medium text-center text-balance"
               style={{ color: 'var(--text-primary)' }}
             >
               What will you build?
@@ -554,12 +567,6 @@ export function ChatView({
         <ContinueChatRegistered
           onClose={() => setSlideUp('none')}
           onPurchase={() => { onOpenPurchase(); setSlideUp('none') }}
-        />
-      )}
-      {slideUp === 'anon_limit' && (
-        <ContinueChatAnon
-          onClose={() => setSlideUp('none')}
-          onLogin={() => { setSlideUp('none'); onLogin?.() }}
         />
       )}
     </div>

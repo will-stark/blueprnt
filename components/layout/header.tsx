@@ -40,7 +40,7 @@ export function Header({
 
   return (
     <header
-      className="sticky top-0 z-10 h-[60px] flex items-center justify-between px-4 border-b-[0.5px] border-[var(--border)]"
+      className="sticky top-0 z-10 h-[60px] flex items-center justify-between px-5 md:px-4 border-b-[0.5px] border-[var(--border)]"
       style={{ backgroundColor: 'var(--bg-surface)' }}
     >
       {/* Left: hamburger (mobile only) + logo */}

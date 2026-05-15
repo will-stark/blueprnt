@@ -107,6 +107,10 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Anonymous path ─────────────────────────────────────────────────────────
+  // Anonymous generation is currently paused. Remove the early return to re-enable.
+  if (userType === 'anonymous') {
+    return Response.json({ error: 'auth_required' }, { status: 401 })
+  }
   if (userType === 'anonymous') {
     if (!anonymousId) return Response.json({ error: 'Missing anonymousId' }, { status: 400 })
 
