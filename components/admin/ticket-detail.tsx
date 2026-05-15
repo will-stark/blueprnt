@@ -3,13 +3,13 @@
 import { useState } from 'react'
 import { X, Loader2 } from 'lucide-react'
 import { StatusBadge, type TicketStatus } from '@/components/ui/status-badge'
-import type { MockTicket } from '@/lib/mock-data'
+import type { Ticket } from '@/lib/mock-data'
 
 interface TicketDetailProps {
-  ticket: MockTicket
+  ticket: Ticket
   onClose: () => void
-  onUpdateStatus: (id: string, status: TicketStatus) => void
-  onAddNote: (id: string, note: string) => void
+  onUpdateStatus: (id: string, status: TicketStatus) => void | Promise<void>
+  onAddNote: (id: string, note: string) => void | Promise<void>
 }
 
 const STATUS_OPTIONS: TicketStatus[] = ['open', 'in_progress', 'resolved']
@@ -19,16 +19,17 @@ export function TicketDetail({ ticket, onClose, onUpdateStatus, onAddNote }: Tic
   const [saving, setSaving] = useState(false)
   const [saveDone, setSaveDone] = useState(false)
 
-  const handleSaveNote = () => {
+  const handleSaveNote = async () => {
     if (!note.trim()) return
     setSaving(true)
-    setTimeout(() => {
-      onAddNote(ticket.id, note.trim())
+    try {
+      await onAddNote(ticket.id, note.trim())
       setNote('')
-      setSaving(false)
       setSaveDone(true)
       setTimeout(() => setSaveDone(false), 2000)
-    }, 800)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -103,7 +104,7 @@ export function TicketDetail({ ticket, onClose, onUpdateStatus, onAddNote }: Tic
         </div>
 
         {/* Admin notes */}
-        {ticket.notes && ticket.notes.length > 0 && (
+        {ticket.notes.length > 0 && (
           <div>
             <span className="text-[11px] block mb-2" style={{ color: 'var(--text-muted)' }}>Admin notes</span>
             <div className="space-y-2">

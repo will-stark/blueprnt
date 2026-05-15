@@ -1,51 +1,33 @@
 import { NextRequest } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import { db } from '@/lib/db'
 import { users, chats, messages } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { isAnonymousLimitHit, logAnonymousGeneration } from '@/lib/db/anonymous-limit'
+import {
+  getDailyGenerationCount,
+  isUserRateLimited,
+  hasPriorStrikeInWindow,
+  logOffTopicStrike,
+  logGeneration,
+} from '@/lib/db/generation-log'
 import { encrypt } from '@/lib/crypto'
 import { hashForLogging } from '@/lib/logging'
+import { classifyRequest, applyHardFilters, applyEditFilters } from '@/lib/ai/classify'
+import { loadBlueprintContext } from '@/lib/ai/context'
+import { buildPrompt } from '@/lib/ai/prompt-builder'
+import { streamFromGemini } from '@/lib/ai/gemini'
+import { validateBlueprint } from '@/lib/ai/validate'
+import { alertDailyCapWarning } from '@/lib/alerts'
+import type { GenerateRequestBody, PromptPayload } from '@/lib/ai/types'
 
 export const maxDuration = 60
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-const MODEL_PRIMARY = 'gemini-2.0-flash-thinking-exp-01-21'
-const MODEL_FALLBACK = 'gemini-2.0-flash'
-
-const SYSTEM_PROMPT = `You are a technical blueprint generator for Blueprnt. When a user describes an app idea, produce a comprehensive 5-section technical document.
-
-Your output MUST follow this exact structure with these exact headings:
-
-# Section 1 — Expanded Overview
-Cover: target users, core problem being solved, key success criteria, and scope boundaries.
-
-# Section 2 — Core Elements
-Cover: full feature list, authentication strategy, database schema (tables + key fields), external APIs needed, user roles/permissions, and client-side state management.
-
-# Section 3 — Basic + Extended Logic
-Cover: all major data flows, edge cases and error states, rate limiting, race conditions, and security considerations.
-
-# Section 4 — Full Workflow
-Numbered step-by-step walkthrough of every screen, user action, and transition — including loading states, empty states, and error states. Cover both happy path and failure paths.
-
-# Section 5 — Cost of Development
-Three tiers with real service names and current pricing:
-- **Free / OSS tier** — what can be built for $0/month
-- **Indie Builder tier** — realistic paid-tier stack (~$20–100/month)
-- **At Scale tier** — what it costs at 10k+ users/month
-
-RULES:
-- Always output all 5 sections in order. Never skip a section.
-- Use Markdown: headers, bullet lists, numbered lists, code blocks where helpful.
-- Be specific: name exact services (Supabase, Neon, Clerk, Vercel, etc.) with real pricing.
-- For schemas: show table names and key columns. For APIs: show endpoint shapes.
-- For workflows: number every step. Cover both success and failure paths.
-- If the user mentions Farcaster: tailor the blueprint to Farcaster mini-app specs (Frame SDK, Warpcast, FID-based auth, USDC on Base).
-
-If the request is clearly not an app idea, respond only with:
-"I can only generate technical blueprints for app ideas. Please describe an app, tool, or platform you want to build."
-`
+const GIFTED_CYCLE_DAYS = 7
+const SSE_HEADERS = {
+  'Content-Type': 'text/event-stream',
+  'Cache-Control': 'no-cache',
+  Connection: 'keep-alive',
+}
 
 const encoder = new TextEncoder()
 
@@ -53,256 +35,291 @@ function send(controller: ReadableStreamDefaultController, data: object) {
   controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
 }
 
-// ─── Hard filters ─────────────────────────────────────────────────────────────
-
-const BLOCKLIST = [
-  'porn', 'nsfw', 'xxx', 'nude', 'onlyfans',
-  'exploit', 'ddos', 'ransomware', 'keylogger',
-]
-
-function applyHardFilters(message: string): string | null {
-  if (message.trim().length < 10) return 'Message too short. Please describe your app idea in more detail.'
-  const lower = message.toLowerCase()
-  if (BLOCKLIST.some((w) => lower.includes(w))) return 'Your message contains blocked content.'
-  return null
+function getDailyCap(): number {
+  const cap = parseInt(process.env.DAILY_REQUEST_CAP ?? '1400', 10)
+  return isNaN(cap) ? 1400 : cap
 }
-
-// ─── Gemini call with fallback ────────────────────────────────────────────────
-
-async function generateStream(message: string) {
-  const opts = { systemInstruction: SYSTEM_PROMPT }
-  try {
-    const model = genAI.getGenerativeModel({ model: MODEL_PRIMARY, ...opts })
-    return await model.generateContentStream(message)
-  } catch {
-    console.warn('[GENERATE] Primary model failed, falling back to', MODEL_FALLBACK)
-    const model = genAI.getGenerativeModel({ model: MODEL_FALLBACK, ...opts })
-    return await model.generateContentStream(message)
-  }
-}
-
-// ─── Shared stream builder ────────────────────────────────────────────────────
 
 function buildStream(
-  message: string,
-  onComplete: (fullText: string) => Promise<Record<string, unknown> | void>
+  payload: PromptPayload,
+  onComplete: (fullText: string) => Promise<Record<string, unknown> | void>,
 ): Response {
   const stream = new ReadableStream({
     async start(controller) {
-      try {
-        const result = await generateStream(message)
-        let fullText = ''
-
-        for await (const chunk of result.stream) {
-          const text = chunk.text()
-          if (text) {
-            fullText += text
-            send(controller, { text })
+      await streamFromGemini(payload, {
+        onChunk: (text) => send(controller, { text }),
+        onComplete: async (fullText) => {
+          try {
+            const meta = await onComplete(fullText)
+            send(controller, { done: true, ...(meta ?? {}) })
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err)
+            console.error('[GENERATE] onComplete error:', msg)
+            send(controller, { done: true, error: 'Failed to save blueprint. Please try again.' })
           }
-        }
-
-        const meta = await onComplete(fullText)
-        send(controller, { done: true, ...(meta ?? {}) })
-        controller.close()
-      } catch (err) {
-        console.error('[GENERATE] Stream error: %s', err instanceof Error ? err.message : String(err))
-        if (err instanceof Error) console.error('[GENERATE] Stream stack:', err.stack)
-        send(controller, { error: 'Generation failed. Please try again.' })
-        controller.close()
-      }
+          controller.close()
+        },
+        onError: (err) => {
+          console.error('[GENERATE] Stream error:', err.message)
+          send(controller, { error: 'Generation failed. Please try again.' })
+          controller.close()
+        },
+      })
     },
   })
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    },
-  })
+  return new Response(stream, { headers: SSE_HEADERS })
 }
 
-// ─── Route handler ─────────────────────────────────────────────────────────────
+// ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const t0 = Date.now()
-  console.log('[GENERATE] POST hit:', new Date().toISOString())
 
+  let body: GenerateRequestBody
   try {
-    const body = await req.json()
-    const { userType, message, isRegenerate, messageId } = body
+    body = await req.json()
+  } catch {
+    return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
 
-    console.log('[GENERATE] Params: userType=%s msgLen=%d chatId=%s identityId=%s anonId=%s isRegen=%s',
-      userType,
-      message?.length ?? 0,
-      body.chatId ?? 'none',
-      body.identityId ? body.identityId.slice(0, 10) + '…' : 'none',
-      body.anonymousId ? body.anonymousId.slice(0, 8) + '…' : 'none',
-      !!isRegenerate,
-    )
+  const {
+    userType,
+    message,
+    isRegenerate,
+    messageId,
+    chatId,
+    identityId,
+    anonymousId,
+    activeBlueprintMessageId,
+    activeBranchIndex,
+  } = body
 
-    if (!userType || !message?.trim()) {
-      console.warn('[GENERATE] Missing required fields: userType=%s hasMessage=%s', userType, !!message?.trim())
-      return Response.json({ error: 'Missing required fields' }, { status: 400 })
-    }
+  if (!userType || !message?.trim()) {
+    return Response.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+
+  // ── Daily global cap ───────────────────────────────────────────────────────
+  const cap = getDailyCap()
+  const dailyCount = await getDailyGenerationCount()
+  if (dailyCount >= cap) {
+    console.warn('[GENERATE] Daily cap hit: %d/%d', dailyCount, cap)
+    return Response.json({ error: 'daily_cap_exceeded' }, { status: 429 })
+  }
+
+  // ── Anonymous path ─────────────────────────────────────────────────────────
+  if (userType === 'anonymous') {
+    if (!anonymousId) return Response.json({ error: 'Missing anonymousId' }, { status: 400 })
 
     const filterError = applyHardFilters(message)
-    if (filterError) {
-      console.warn('[GENERATE] Hard filter blocked message: %s', filterError)
-      return Response.json({ error: filterError }, { status: 400 })
+    if (filterError) return Response.json({ error: filterError }, { status: 400 })
+
+    const limitHit = await isAnonymousLimitHit(anonymousId)
+    if (limitHit) return Response.json({ error: 'no_credits' }, { status: 402 })
+
+    const payload = buildPrompt(
+      'new_blueprint',
+      'generic',
+      message,
+      { currentBlueprint: null, originalUserMessage: null },
+    )
+
+    console.log('[GENERATE] Anon stream start. msgHash=%s', hashForLogging(message))
+    return buildStream(payload, async (fullText) => {
+      const validation = validateBlueprint(fullText)
+      if (!validation.valid) {
+        console.warn('[GENERATE] Anon blueprint invalid: %s', validation.reason)
+        throw new Error('blueprint_invalid')
+      }
+      await logAnonymousGeneration(anonymousId)
+      console.log('[GENERATE] Anon done. duration=%dms', Date.now() - t0)
+    })
+  }
+
+  // ── Registered path ────────────────────────────────────────────────────────
+  if (!identityId) return Response.json({ error: 'Missing identityId' }, { status: 400 })
+
+  const rateLimited = await isUserRateLimited(identityId)
+  if (rateLimited) return Response.json({ error: 'rate_limited' }, { status: 429 })
+
+  const [user] = await db.select().from(users).where(eq(users.identityId, identityId)).limit(1)
+  if (!user) {
+    console.warn('[GENERATE] User not found: identityId=%s', identityId.slice(0, 10) + '…')
+    return Response.json({ error: 'User not found' }, { status: 404 })
+  }
+
+  // Classify — uses body to determine kind, prior strikes for two-strike logic
+  const priorStrike = await hasPriorStrikeInWindow(identityId)
+  const { kind, platform, isSecondStrike } = classifyRequest({ body, priorStrikeWithinWindow: priorStrike })
+
+  // Off-topic two-strike handling
+  if (kind === 'off_topic') {
+    await logOffTopicStrike(identityId)
+    const errorMsg = isSecondStrike
+      ? 'Your account has been flagged for repeated off-topic messages. Please describe an app idea.'
+      : 'Blueprnt generates technical blueprints for app ideas. Please describe the app you want to build.'
+    return Response.json({ error: errorMsg }, { status: 400 })
+  }
+
+  // Server-side char limits
+  const filterError =
+    kind === 'edit_blueprint' || kind === 'regenerate'
+      ? applyEditFilters(message)
+      : applyHardFilters(message)
+  if (filterError) return Response.json({ error: filterError }, { status: 400 })
+
+  // ── Regenerate ─────────────────────────────────────────────────────────────
+  if (isRegenerate) {
+    if (!messageId || !chatId) {
+      return Response.json({ error: 'Missing messageId or chatId' }, { status: 400 })
     }
 
-    // ── Anonymous ──────────────────────────────────────────────────────────
-    if (userType === 'anonymous') {
-      const { anonymousId } = body
-      if (!anonymousId) {
-        console.warn('[GENERATE] Anonymous request missing anonymousId')
-        return Response.json({ error: 'Missing anonymousId' }, { status: 400 })
-      }
-      const limitHit = await isAnonymousLimitHit(anonymousId)
-      if (limitHit) {
-        console.log('[GENERATE] Anonymous limit hit for id=%s', anonymousId.slice(0, 8) + '…')
-        return Response.json({ error: 'no_credits' }, { status: 402 })
+    const [chat] = await db.select().from(chats).where(eq(chats.id, chatId)).limit(1)
+    if (!chat) return Response.json({ error: 'Chat not found' }, { status: 404 })
+    if (chat.userId !== user.id) return Response.json({ error: 'Unauthorized' }, { status: 403 })
+    if (chat.editsRemaining <= 0) return Response.json({ error: 'no_edits' }, { status: 402 })
+
+    const [msg] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1)
+    if (!msg || msg.chatId !== chatId) {
+      return Response.json({ error: 'Message not found' }, { status: 404 })
+    }
+
+    const context = await loadBlueprintContext({ chatId, activeBlueprintMessageId, activeBranchIndex })
+    const payload = buildPrompt('regenerate', platform, message, context)
+
+    console.log('[GENERATE] Regen stream start. chatId=%s msgHash=%s',
+      chatId.slice(0, 8) + '…', hashForLogging(message))
+
+    return buildStream(payload, async (fullText) => {
+      const validation = validateBlueprint(fullText)
+      if (!validation.valid) throw new Error('blueprint_invalid')
+
+      const newBranch = [{ content: encrypt(fullText), timestamp: new Date().toISOString() }]
+      await db
+        .update(messages)
+        .set({
+          branches: sql`COALESCE(${messages.branches}, '[]'::jsonb) || ${JSON.stringify(newBranch)}::jsonb`,
+        })
+        .where(eq(messages.id, messageId))
+
+      const [updatedChat] = await db
+        .update(chats)
+        .set({ editsRemaining: sql`GREATEST(${chats.editsRemaining} - 1, 0)`, updatedAt: new Date() })
+        .where(eq(chats.id, chatId))
+        .returning()
+
+      await logGeneration(identityId, 'regenerate')
+      await maybeFireCapAlert(dailyCount + 1, cap)
+
+      if (updatedChat.editsRemaining === 0) {
+        await maybeGrantGiftedCycle(user)
       }
 
-      console.log('[GENERATE] Anonymous path — starting stream, msgHash=%s', hashForLogging(message))
-      return buildStream(message, async () => {
-        await logAnonymousGeneration(anonymousId)
-        console.log('[GENERATE] Anonymous generation logged. duration=%dms', Date.now() - t0)
+      console.log('[GENERATE] Regen saved. chatId=%s duration=%dms',
+        chatId.slice(0, 8) + '…', Date.now() - t0)
+      return { chatId, isRegenerate: true, messageId, editsRemaining: updatedChat.editsRemaining }
+    })
+  }
+
+  // ── New blueprint or edit ──────────────────────────────────────────────────
+  const isNewChat = !chatId
+
+  if (isNewChat) {
+    if (user.creditsRemaining <= 0) return Response.json({ error: 'no_credits' }, { status: 402 })
+  } else {
+    const [chat] = await db.select().from(chats).where(eq(chats.id, chatId!)).limit(1)
+    if (!chat) return Response.json({ error: 'Chat not found' }, { status: 404 })
+    if (chat.userId !== user.id) return Response.json({ error: 'Unauthorized' }, { status: 403 })
+    if (chat.editsRemaining <= 0) return Response.json({ error: 'no_edits' }, { status: 402 })
+  }
+
+  const context = isNewChat
+    ? { currentBlueprint: null, originalUserMessage: null }
+    : await loadBlueprintContext({
+        chatId: chatId!,
+        activeBlueprintMessageId,
+        activeBranchIndex,
       })
+
+  const payload = buildPrompt(kind, platform, message, context)
+
+  console.log('[GENERATE] Registered stream start. kind=%s isNewChat=%s msgHash=%s',
+    kind, isNewChat, hashForLogging(message))
+
+  return buildStream(payload, async (fullText) => {
+    const validation = validateBlueprint(fullText)
+    if (!validation.valid) {
+      console.warn('[GENERATE] Blueprint invalid: %s', validation.reason)
+      throw new Error('blueprint_invalid')
     }
 
-    // ── Registered (privy / farcaster) ─────────────────────────────────────
-    const { identityId, chatId } = body
-    if (!identityId) {
-      console.warn('[GENERATE] Registered request missing identityId')
-      return Response.json({ error: 'Missing identityId' }, { status: 400 })
-    }
-
-    const userRows = await db.select().from(users).where(eq(users.identityId, identityId)).limit(1)
-    if (userRows.length === 0) {
-      console.warn('[GENERATE] User not found: identityId=%s', identityId.slice(0, 10) + '…')
-      return Response.json({ error: 'User not found' }, { status: 404 })
-    }
-    const user = userRows[0]
-
-    // ── Regenerate path ────────────────────────────────────────────────────
-    if (isRegenerate) {
-      if (!messageId || !chatId) {
-        console.warn('[GENERATE] Regenerate missing messageId or chatId')
-        return Response.json({ error: 'Missing messageId or chatId' }, { status: 400 })
-      }
-
-      const chatRows = await db.select().from(chats).where(eq(chats.id, chatId)).limit(1)
-      if (!chatRows[0]) return Response.json({ error: 'Chat not found' }, { status: 404 })
-      if (chatRows[0].userId !== user.id) return Response.json({ error: 'Unauthorized' }, { status: 403 })
-      if (chatRows[0].editsRemaining <= 0) {
-        console.log('[GENERATE] No edits for regenerate: chatId=%s', chatId.slice(0, 8) + '…')
-        return Response.json({ error: 'no_edits' }, { status: 402 })
-      }
-
-      const msgRows = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1)
-      if (!msgRows[0] || msgRows[0].chatId !== chatId) {
-        console.warn('[GENERATE] Message not found or wrong chat: messageId=%s', messageId)
-        return Response.json({ error: 'Message not found' }, { status: 404 })
-      }
-
-      console.log('[GENERATE] Regenerate path — starting stream. chatId=%s msgHash=%s',
-        chatId.slice(0, 8) + '…', hashForLogging(message))
-
-      return buildStream(message, async (fullText) => {
-        const newBranch = [{ content: encrypt(fullText), timestamp: new Date().toISOString() }]
-        await db
-          .update(messages)
-          .set({
-            branches: sql`COALESCE(${messages.branches}, '[]'::jsonb) || ${JSON.stringify(newBranch)}::jsonb`,
-          })
-          .where(eq(messages.id, messageId))
-
-        await db
-          .update(chats)
-          .set({
-            editsRemaining: sql`GREATEST(${chats.editsRemaining} - 1, 0)`,
-            updatedAt: new Date(),
-          })
-          .where(eq(chats.id, chatId))
-
-        console.log('[GENERATE] Regenerate saved: messageId=%s chatId=%s duration=%dms',
-          messageId.slice(0, 8) + '…', chatId.slice(0, 8) + '…', Date.now() - t0)
-
-        return { chatId, isRegenerate: true, messageId }
-      })
-    }
-
-    // ── New chat or edit ───────────────────────────────────────────────────
-    const isNewChat = !chatId
-    console.log('[GENERATE] User found: dbId=%s credits=%d isNewChat=%s',
-      user.id.slice(0, 8) + '…', user.creditsRemaining, isNewChat)
+    const title = message.slice(0, 60).trim() + (message.length > 60 ? '...' : '')
+    const encryptedMessage = encrypt(message)
+    const encryptedFullText = encrypt(fullText)
+    let finalChatId: string
+    let editsRemaining: number
 
     if (isNewChat) {
-      if (user.creditsRemaining <= 0) {
-        console.log('[GENERATE] No credits remaining for user=%s', user.id.slice(0, 8) + '…')
-        return Response.json({ error: 'no_credits' }, { status: 402 })
+      const [newChat] = await db
+        .insert(chats)
+        .values({ userId: user.id, title: encrypt(title) })
+        .returning()
+      finalChatId = newChat.id
+      editsRemaining = newChat.editsRemaining
+
+      const [updatedUser] = await db
+        .update(users)
+        .set({ creditsRemaining: sql`GREATEST(${users.creditsRemaining} - 1, 0)` })
+        .where(eq(users.id, user.id))
+        .returning()
+
+      if (updatedUser.creditsRemaining === 0) {
+        await maybeGrantGiftedCycle(user)
       }
     } else {
-      const chatRows = await db.select().from(chats).where(eq(chats.id, chatId)).limit(1)
-      if (chatRows.length === 0) {
-        console.warn('[GENERATE] Chat not found: chatId=%s', chatId)
-        return Response.json({ error: 'Chat not found' }, { status: 404 })
+      const [updatedChat] = await db
+        .update(chats)
+        .set({ editsRemaining: sql`GREATEST(${chats.editsRemaining} - 1, 0)`, updatedAt: new Date() })
+        .where(eq(chats.id, chatId!))
+        .returning()
+      finalChatId = chatId!
+      editsRemaining = updatedChat.editsRemaining
+
+      if (updatedChat.editsRemaining === 0) {
+        await maybeGrantGiftedCycle(user)
       }
-      if (chatRows[0].editsRemaining <= 0) {
-        console.log('[GENERATE] No edits remaining: chatId=%s', chatId.slice(0, 8) + '…')
-        return Response.json({ error: 'no_edits' }, { status: 402 })
-      }
-      console.log('[GENERATE] Edit check passed: editsRemaining=%d', chatRows[0].editsRemaining)
     }
 
-    console.log('[GENERATE] Registered path — starting stream. isNewChat=%s msgHash=%s',
-      isNewChat, hashForLogging(message))
+    await db.insert(messages).values([
+      { chatId: finalChatId, role: 'user', content: encryptedMessage },
+      { chatId: finalChatId, role: 'assistant', content: encryptedFullText },
+    ])
 
-    return buildStream(message, async (fullText) => {
-      const title = message.slice(0, 60).trim() + (message.length > 60 ? '...' : '')
-      const encryptedMessage = encrypt(message)
-      const encryptedFullText = encrypt(fullText)
-      let finalChatId: string = chatId
+    await logGeneration(identityId, kind)
+    await maybeFireCapAlert(dailyCount + 1, cap)
 
-      if (isNewChat) {
-        const [newChat] = await db
-          .insert(chats)
-          .values({ userId: user.id, title: encrypt(title) })
-          .returning()
-        finalChatId = newChat.id
-        await db
-          .update(users)
-          .set({ creditsRemaining: sql`GREATEST(${users.creditsRemaining} - 1, 0)` })
-          .where(eq(users.id, user.id))
-        console.log('[GENERATE] New chat created: chatId=%s creditsAfter=%d duration=%dms',
-          finalChatId.slice(0, 8) + '…', user.creditsRemaining - 1, Date.now() - t0)
-      } else {
-        await db
-          .update(chats)
-          .set({
-            editsRemaining: sql`GREATEST(${chats.editsRemaining} - 1, 0)`,
-            updatedAt: new Date(),
-          })
-          .where(eq(chats.id, chatId))
-        console.log('[GENERATE] Chat updated (edit): chatId=%s duration=%dms',
-          chatId.slice(0, 8) + '…', Date.now() - t0)
-      }
+    console.log('[GENERATE] Saved. kind=%s chatId=%s duration=%dms',
+      kind, finalChatId.slice(0, 8) + '…', Date.now() - t0)
 
-      await db.insert(messages).values([
-        { chatId: finalChatId, role: 'user', content: encryptedMessage },
-        { chatId: finalChatId, role: 'assistant', content: encryptedFullText },
-      ])
-      console.log('[GENERATE] Messages saved: chatId=%s assistantHash=%s',
-        finalChatId.slice(0, 8) + '…', hashForLogging(fullText))
+    return { chatId: finalChatId, title, editsRemaining }
+  })
+}
 
-      return { chatId: finalChatId, title } // return plaintext title to client
-    })
-  } catch (err) {
-    console.error('[GENERATE] Unhandled error after %dms: %s', Date.now() - t0,
-      err instanceof Error ? err.message : String(err))
-    if (err instanceof Error) console.error('[GENERATE] Stack:', err.stack)
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+async function maybeFireCapAlert(currentCount: number, cap: number): Promise<void> {
+  const threshold = Math.floor(cap * 0.8)
+  // Fire exactly when crossing the 80% boundary
+  if (currentCount === threshold) {
+    await alertDailyCapWarning(currentCount, cap).catch(() => {})
   }
+}
+
+async function maybeGrantGiftedCycle(user: {
+  id: string
+  giftedCycleExpiresAt: Date | null
+}): Promise<void> {
+  const now = new Date()
+  if (user.giftedCycleExpiresAt && user.giftedCycleExpiresAt > now) return
+  const expires = new Date(now.getTime() + GIFTED_CYCLE_DAYS * 24 * 60 * 60 * 1000)
+  await db.update(users).set({ giftedCycleExpiresAt: expires }).where(eq(users.id, user.id))
 }

@@ -46,6 +46,26 @@ export interface MockTicket {
   notes?: MockTicketNote[]
 }
 
+// Real ticket type used by API responses and admin components
+export interface TicketNote {
+  text: string
+  createdAt: string
+}
+
+export interface Ticket {
+  id: string
+  shortId: string
+  userId?: string
+  identityType: string | null
+  identityId?: string | null
+  userDisplay: string
+  title: string
+  description: string
+  status: 'open' | 'in_progress' | 'resolved'
+  createdAt: string
+  notes: TicketNote[]
+}
+
 // Mock users
 export const MOCK_FARCASTER_USER: MockUser = {
   type: 'farcaster',

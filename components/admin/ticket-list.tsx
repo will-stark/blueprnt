@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import { StatusBadge, type TicketStatus } from '@/components/ui/status-badge'
-import type { MockTicket } from '@/lib/mock-data'
+import type { Ticket } from '@/lib/mock-data'
 
 type Filter = 'all' | TicketStatus
 
 interface TicketListProps {
-  tickets: MockTicket[]
-  onSelectTicket: (ticket: MockTicket) => void
+  tickets: Ticket[]
+  onSelectTicket: (ticket: Ticket) => void
   selectedId?: string
 }
 

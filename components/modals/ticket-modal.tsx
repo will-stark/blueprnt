@@ -6,11 +6,13 @@ import { Modal } from '@/components/ui/modal'
 
 interface TicketModalProps {
   onClose: () => void
+  identityId?: string
+  identityType?: string
 }
 
 type SubmitState = 'idle' | 'loading' | 'success' | 'error'
 
-export function TicketModal({ onClose }: TicketModalProps) {
+export function TicketModal({ onClose, identityId, identityType }: TicketModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [submitState, setSubmitState] = useState<SubmitState>('idle')
@@ -23,14 +25,26 @@ export function TicketModal({ onClose }: TicketModalProps) {
   const descCounterColor =
     descPct >= 1 ? 'var(--danger)' : descPct >= 0.9 ? 'var(--warning)' : 'var(--text-muted)'
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) return
     setSubmitState('loading')
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identityId: identityId ?? null,
+          identityType: identityType ?? null,
+          title: title.trim(),
+          description: description.trim(),
+        }),
+      })
+      if (!res.ok) throw new Error('Failed')
       setSubmitState('success')
       setTimeout(onClose, 2000)
-    }, 1200)
+    } catch {
+      setSubmitState('error')
+    }
   }
 
   return (

@@ -26,6 +26,7 @@ interface ChatViewProps {
   anonymousId?: string | null
   activeChatId?: string
   onChatCreated?: (chat: MockChat) => void
+  onEditsUpdate?: (edits: number) => void
 }
 
 type ActiveSlideUp = 'none' | 'zero_credits' | 'zero_edits' | 'anon_limit' | 'account_prompt'
@@ -47,6 +48,7 @@ export function ChatView({
   anonymousId,
   activeChatId,
   onChatCreated,
+  onEditsUpdate,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -213,6 +215,12 @@ export function ChatView({
         body.identityId = identityId
         if (activeChatId && !activeChatId.startsWith('chat_')) {
           body.chatId = activeChatId
+          // Send which branch the user is viewing so context injection loads the right version
+          const lastAIMsg = [...messages].reverse().find((m) => m.role === 'assistant')
+          if (lastAIMsg) {
+            body.activeBlueprintMessageId = lastAIMsg.id
+            body.activeBranchIndex = activeBranchIndices[lastAIMsg.id] ?? 0
+          }
         }
       }
 
@@ -270,12 +278,17 @@ export function ChatView({
             onChatCreated?.(anonChat)
             onGenerate?.()
           } else if (meta.chatId && meta.title) {
+            const serverEdits = typeof meta.editsRemaining === 'number' ? meta.editsRemaining : editsRef.current
             onChatCreated?.({
               id: meta.chatId as string,
               title: meta.title as string,
               updatedAt: new Date().toISOString(),
-              editsRemaining: editsRef.current,
+              editsRemaining: serverEdits,
             })
+            if (typeof meta.editsRemaining === 'number') {
+              editsRef.current = meta.editsRemaining as number
+              onEditsUpdate?.(meta.editsRemaining as number)
+            }
           }
         },
         () => {
@@ -291,8 +304,8 @@ export function ChatView({
     }
   }, [
     inputValue, isStreaming, regeneratingMessageId, hasMessages, isAnonymous, anonymousAllowed,
-    messages, onMessagesChange, onInputChange, onGenerate, onChatCreated,
-    identityId, anonymousId, activeChatId, user.type,
+    messages, onMessagesChange, onInputChange, onGenerate, onChatCreated, onEditsUpdate,
+    identityId, anonymousId, activeChatId, user.type, activeBranchIndices,
     startStallTimer, clearStallTimer, readStream,
   ])
 
@@ -330,6 +343,8 @@ export function ChatView({
           messageId,
           chatId: activeChatId,
           identityId,
+          activeBlueprintMessageId: messageId,
+          activeBranchIndex: activeBranchIndices[messageId] ?? 0,
         }),
       })
 
@@ -346,7 +361,7 @@ export function ChatView({
       await readStream(
         response,
         (_chunk, accumulated) => setStreamingContent(accumulated),
-        (accumulated) => {
+        (accumulated, meta) => {
           console.log('[CHAT] Regenerate done: messageId=%s len=%d', messageId.slice(0, 8) + '…', accumulated.length)
           const newBranch = { content: accumulated, timestamp: new Date().toISOString() }
           onMessagesChange((prev: MockMessage[]) =>
@@ -360,8 +375,13 @@ export function ChatView({
           const newIdx = 1 + currentBranches.length
           setActiveBranchIndices((prev) => ({ ...prev, [messageId]: newIdx }))
           setStreamingContent('')
-          // Optimistic edit decrement so gate logic reflects reality before next poll
-          editsRef.current = Math.max(editsRef.current - 1, 0)
+          // Use server-returned editsRemaining if available; otherwise optimistically decrement
+          if (typeof meta.editsRemaining === 'number') {
+            editsRef.current = meta.editsRemaining as number
+            onEditsUpdate?.(meta.editsRemaining as number)
+          } else {
+            editsRef.current = Math.max(editsRef.current - 1, 0)
+          }
         },
         () => {
           setRegeneratingMessageId(null)
@@ -376,8 +396,8 @@ export function ChatView({
       clearStallTimer()
     }
   }, [
-    activeChatId, isStreaming, regeneratingMessageId, isAnonymous, messages,
-    identityId, user.type, onMessagesChange,
+    activeChatId, isStreaming, regeneratingMessageId, isAnonymous, messages, activeBranchIndices,
+    identityId, user.type, onMessagesChange, onEditsUpdate,
     startStallTimer, clearStallTimer, readStream,
   ])
 
@@ -476,6 +496,7 @@ export function ChatView({
             onSend={handleSend}
             isStreaming={isStreaming || !!regeneratingMessageId}
             disabled={zeroEdits}
+            maxChars={hasMessages ? 500 : 1000}
             placeholder={
               hasMessages
                 ? 'Follow up or refine your blueprint...'

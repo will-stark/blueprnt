@@ -162,6 +162,10 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
       .catch(() => {})
   }, [realUser])
 
+  // Ref so the poll closure can always read the current activeChatId without restarting
+  const activeChatIdRef = useRef(activeChatId)
+  activeChatIdRef.current = activeChatId
+
   // Poll /api/state every 10 s; pause when tab is hidden
   useEffect(() => {
     if (!realUser || realUser.type === 'anonymous') return
@@ -177,12 +181,18 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     async function poll() {
       if (document.hidden) return
       try {
+        const chatId = activeChatIdRef.current
+        const chatParam =
+          chatId && !chatId.startsWith('chat_')
+            ? `&chatId=${encodeURIComponent(chatId)}`
+            : ''
         const res = await fetch(
-          `/api/state?identityId=${encodeURIComponent(identityId)}&identityType=${realUser!.type}`
+          `/api/state?identityId=${encodeURIComponent(identityId)}&identityType=${realUser!.type}${chatParam}`
         )
         if (!res.ok) throw new Error('state fetch failed')
         const data = await res.json()
         if (typeof data.creditsRemaining === 'number') setCredits(data.creditsRemaining)
+        if (typeof data.editsRemaining === 'number') setEdits(data.editsRemaining)
         retries = 0
       } catch {
         retries++
@@ -267,6 +277,40 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     const chat = chats.find((c) => c.id === activeChatId)
     if (chat) setEdits(chat.editsRemaining)
   }, [activeChatId, chats])
+
+  // Hydrate messages when switching to an existing saved chat
+  useEffect(() => {
+    // Only hydrate real DB chat IDs (not ephemeral chat_ placeholders, not anon_ chats)
+    if (!activeChatId || activeChatId.startsWith('chat_') || activeChatId.startsWith('anon_')) return
+    if (!realUser || realUser.type === 'anonymous') return
+    // If messages are already populated (e.g., from a just-created chat), skip
+    if (messages.length > 0) return
+
+    fetch(`/api/chats/${activeChatId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.messages) return
+        setMessages(
+          data.messages.map((m: Record<string, unknown>) => ({
+            id: m.id as string,
+            role: m.role as 'user' | 'assistant',
+            content: m.content as string,
+            branches: (m.branches as Array<{ content: string; timestamp: string }>) ?? [],
+            createdAt: m.createdAt as string,
+          }))
+        )
+        if (typeof data.chat?.editsRemaining === 'number') {
+          setEdits(data.chat.editsRemaining as number)
+          setChats((prev) =>
+            prev.map((c) =>
+              c.id === activeChatId ? { ...c, editsRemaining: data.chat.editsRemaining as number } : c
+            )
+          )
+        }
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChatId, realUser?.type])
 
   // Promote pending chat to saved chats when the first message is sent.
   useEffect(() => {
@@ -452,7 +496,15 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
         />
 
         {showAdmin ? (
-          <AdminView />
+          <AdminView
+            identityType={realUser?.type !== 'anonymous' ? (realUser?.type ?? null) : null}
+            identityId={
+              realUser?.type === 'farcaster' ? String(realUser.farcaster!.fid)
+              : realUser?.type === 'privy' ? (realUser.privyId ?? null)
+              : null
+            }
+            email={realUser?.email ?? null}
+          />
         ) : (
           <ChatView
             user={user}
@@ -475,6 +527,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
             anonymousId={anonymousId}
             activeChatId={activeChatId}
             onChatCreated={handleChatCreated}
+            onEditsUpdate={setEdits}
           />
         )}
       </div>
@@ -487,11 +540,26 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
           ? <SupportPopup onClose={close} />
           : <TipModal onClose={close} userType={user.type} />
       )}
-      {activeModal === 'ticket' && <TicketModal onClose={close} />}
+      {activeModal === 'ticket' && (
+        <TicketModal
+          onClose={close}
+          identityId={
+            realUser?.type === 'farcaster' ? String(realUser.farcaster!.fid)
+            : realUser?.type === 'privy' ? (realUser.privyId ?? undefined)
+            : undefined
+          }
+          identityType={realUser?.type !== 'anonymous' ? realUser?.type : undefined}
+        />
+      )}
       {activeModal === 'share' && (
         <ShareVerificationModal
           onClose={close}
           onSuccess={handleShareSuccess}
+          identityId={
+            realUser?.type === 'farcaster' ? String(realUser.farcaster!.fid)
+            : realUser?.type === 'privy' ? (realUser.privyId ?? undefined)
+            : undefined
+          }
         />
       )}
       {activeModal === 'clear_all' && (

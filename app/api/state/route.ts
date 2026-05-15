@@ -1,24 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { users } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { users, chats, events } from '@/lib/db/schema'
+import { desc, eq } from 'drizzle-orm'
 
-// Anonymous toggle — DB-backed toggle will replace this in a later phase
-const ANONYMOUS_ALLOWED = true
+// Module-level cache so the /api/state poll (every 10s) doesn't hammer the DB
+let anonAllowedCache: { value: boolean; at: number } | null = null
+const ANON_CACHE_TTL = 60_000
+
+async function getAnonymousAllowed(): Promise<boolean> {
+  if (anonAllowedCache && Date.now() - anonAllowedCache.at < ANON_CACHE_TTL) {
+    return anonAllowedCache.value
+  }
+  try {
+    const [row] = await db
+      .select()
+      .from(events)
+      .where(eq(events.eventType, 'admin_toggle_anon'))
+      .orderBy(desc(events.createdAt))
+      .limit(1)
+    const value = row ? !!(row.metadata as Record<string, unknown>)?.enabled : true
+    anonAllowedCache = { value, at: Date.now() }
+    return value
+  } catch {
+    return true
+  }
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const identityId   = searchParams.get('identityId')
   const identityType = searchParams.get('identityType') as 'farcaster' | 'privy' | null
+  const chatId       = searchParams.get('chatId')
 
-  console.log('[STATE] GET hit: identityType=%s hasIdentityId=%s', identityType, !!identityId)
+  console.log('[STATE] GET hit: identityType=%s hasIdentityId=%s hasChatId=%s',
+    identityType, !!identityId, !!chatId)
 
   try {
+    const anonymousAllowed = await getAnonymousAllowed()
+
     if (!identityId || !identityType) {
       console.log('[STATE] Anonymous request — returning defaults')
       return NextResponse.json({
         userType: 'anonymous',
-        anonymousAllowed: ANONYMOUS_ALLOWED,
+        anonymousAllowed,
         creditsRemaining: null,
         editsRemaining: null,
       })
@@ -35,12 +59,37 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    console.log('[STATE] OK: credits=%d', user.creditsRemaining)
+    // Check/award gifted cycle if one just expired
+    const now = new Date()
+    let giftedCycleExpiresAt = user.giftedCycleExpiresAt
+    if (giftedCycleExpiresAt && giftedCycleExpiresAt <= now) {
+      // Cycle expired — clear it
+      await db.update(users).set({ giftedCycleExpiresAt: null }).where(eq(users.id, user.id))
+      giftedCycleExpiresAt = null
+    }
+
+    // Fetch editsRemaining for the active chat if chatId provided
+    let editsRemaining: number | null = null
+    if (chatId) {
+      const [chat] = await db.select().from(chats).where(eq(chats.id, chatId)).limit(1)
+      if (chat && chat.userId === user.id) {
+        editsRemaining = chat.editsRemaining
+
+        // If edits are 0 and there's an active gifted cycle, grant a batch
+        if (editsRemaining === 0 && giftedCycleExpiresAt && giftedCycleExpiresAt > now) {
+          await db.update(chats).set({ editsRemaining: 5 }).where(eq(chats.id, chatId))
+          editsRemaining = 5
+        }
+      }
+    }
+
+    console.log('[STATE] OK: credits=%d edits=%s', user.creditsRemaining, editsRemaining ?? 'n/a')
     return NextResponse.json({
       userType: identityType,
-      anonymousAllowed: ANONYMOUS_ALLOWED,
+      anonymousAllowed,
       creditsRemaining: user.creditsRemaining,
-      giftedCycleExpiresAt: user.giftedCycleExpiresAt,
+      editsRemaining,
+      giftedCycleExpiresAt,
       creditCycleExpiresAt: user.creditCycleExpiresAt,
     })
   } catch (err) {

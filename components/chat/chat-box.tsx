@@ -3,8 +3,6 @@
 import { useRef, useEffect } from 'react'
 import { SendHorizonal } from 'lucide-react'
 
-const MAX_CHARS = 1000
-
 interface ChatBoxProps {
   value: string
   onChange: (v: string) => void
@@ -12,6 +10,7 @@ interface ChatBoxProps {
   disabled?: boolean
   isStreaming?: boolean
   placeholder?: string
+  maxChars?: number
 }
 
 export function ChatBox({
@@ -21,10 +20,11 @@ export function ChatBox({
   disabled = false,
   isStreaming = false,
   placeholder = 'Describe your app — who it\'s for, what it does...',
+  maxChars = 1000,
 }: ChatBoxProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const count = value.length
-  const pct = count / MAX_CHARS
+  const pct = count / maxChars
 
   // Auto-expand textarea
   useEffect(() => {
@@ -69,7 +69,7 @@ export function ChatBox({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKey}
           placeholder={placeholder}
-          maxLength={MAX_CHARS}
+          maxLength={maxChars}
           rows={1}
           disabled={disabled || isStreaming}
           className="flex-1 bg-transparent resize-none text-[14px] leading-relaxed focus:outline-none disabled:opacity-50"
@@ -97,7 +97,7 @@ export function ChatBox({
           className="text-right text-[12px] font-mono pr-1"
           style={{ color: counterColor }}
         >
-          {count} / {MAX_CHARS}
+          {count} / {maxChars}
         </div>
       )}
     </div>

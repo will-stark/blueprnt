@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Loader2, CheckCircle2, AlertTriangle, ExternalLink } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
 import { SHARE_CAST_TEXT, buildCastComposerUrl } from '@/lib/share'
@@ -17,10 +17,42 @@ type ShareState =
 interface ShareVerificationModalProps {
   onClose: () => void
   onSuccess?: () => void
+  identityId?: string
 }
 
-export function ShareVerificationModal({ onClose, onSuccess }: ShareVerificationModalProps) {
+const VERIFY_DELAY_MS = 5000
+
+export function ShareVerificationModal({ onClose, onSuccess, identityId }: ShareVerificationModalProps) {
   const [state, setState] = useState<ShareState>('initial')
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const callVerify = async (): Promise<void> => {
+    if (!identityId) {
+      setState('service_unavailable')
+      return
+    }
+    try {
+      const res = await fetch('/api/share/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identityId }),
+      })
+      const data = await res.json()
+      if (data.verified) {
+        setState('success')
+        onSuccess?.()
+      } else if (data.reason === 'already_claimed') {
+        setState('success')
+        onSuccess?.()
+      } else if (data.reason === 'not_farcaster_user') {
+        setState('service_unavailable')
+      } else {
+        setState((prev) => (prev === 'round2_verifying' ? 'round2_fail' : 'round1_fail'))
+      }
+    } catch {
+      setState('service_unavailable')
+    }
+  }
 
   const openCastComposer = () => {
     window.open(buildCastComposerUrl(), '_blank', 'noopener,noreferrer')
@@ -29,46 +61,31 @@ export function ShareVerificationModal({ onClose, onSuccess }: ShareVerification
   const handleShareClick = () => {
     openCastComposer()
     setState('verifying')
+    timerRef.current = setTimeout(() => callVerify(), VERIFY_DELAY_MS)
   }
 
   const handleRetry = () => {
     openCastComposer()
     setState('round2_verifying')
-    // Simulate round 2 verification (mock — real polling via Neynar in API route)
-    setTimeout(() => setState('round2_fail'), 4000)
-  }
-
-  const handleSimulateSuccess = () => {
-    setState('success')
-    onSuccess?.()
-  }
-
-  // Simulate round 1 verification result (real: poll /api/share/verify)
-  if (state === 'verifying') {
-    // Auto-advance in demo — real app would poll Neynar
-    // Left as interactive so the demo switcher can trigger both outcomes.
+    timerRef.current = setTimeout(() => callVerify(), VERIFY_DELAY_MS)
   }
 
   return (
     <Modal title="Share to unlock credits" onClose={onClose}>
       <div className="p-6 space-y-5">
 
-        {/* INITIAL — show cast text + share button */}
+        {/* INITIAL */}
         {state === 'initial' && (
           <>
             <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
               Share this message on Farcaster to receive 2 credits:
             </p>
-
-            {/* Cast preview */}
             <div
               className="px-4 py-3 rounded-xl border-[0.5px] border-[var(--border)] text-[13px] leading-relaxed"
               style={{ backgroundColor: 'var(--bg-raised)', color: 'var(--text-primary)' }}
             >
               &ldquo;{SHARE_CAST_TEXT}&rdquo;
             </div>
-
-            {/* Requirements hint */}
             <div
               className="flex gap-2.5 px-3 py-2.5 rounded-lg border-[0.5px] border-[var(--border)]"
               style={{ backgroundColor: 'var(--bg-raised)' }}
@@ -80,7 +97,6 @@ export function ShareVerificationModal({ onClose, onSuccess }: ShareVerification
                 <p>• The mini-app URL</p>
               </div>
             </div>
-
             <button
               onClick={handleShareClick}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-medium text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
@@ -92,30 +108,13 @@ export function ShareVerificationModal({ onClose, onSuccess }: ShareVerification
           </>
         )}
 
-        {/* VERIFYING */}
-        {state === 'verifying' && (
+        {/* VERIFYING (round 1 or 2) */}
+        {(state === 'verifying' || state === 'round2_verifying') && (
           <div className="flex flex-col items-center gap-4 py-6">
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
             <p className="text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
               Verifying cast...
             </p>
-            {/* Demo controls — remove before launch */}
-            <div className="flex gap-2 mt-2">
-              <button
-                onClick={handleSimulateSuccess}
-                className="text-[11px] px-3 py-1 rounded-lg border-[0.5px] border-[var(--border)] hover:bg-[var(--bg-raised)]"
-                style={{ color: 'var(--text-faint)' }}
-              >
-                Demo: success
-              </button>
-              <button
-                onClick={() => setState('round1_fail')}
-                className="text-[11px] px-3 py-1 rounded-lg border-[0.5px] border-[var(--border)] hover:bg-[var(--bg-raised)]"
-                style={{ color: 'var(--text-faint)' }}
-              >
-                Demo: fail
-              </button>
-            </div>
           </div>
         )}
 
@@ -134,18 +133,8 @@ export function ShareVerificationModal({ onClose, onSuccess }: ShareVerification
               style={{ backgroundColor: 'var(--accent)' }}
             >
               <ExternalLink className="w-4 h-4" />
-              Share to Farcaster
+              Try again
             </button>
-          </div>
-        )}
-
-        {/* ROUND 2 VERIFYING */}
-        {state === 'round2_verifying' && (
-          <div className="flex flex-col items-center gap-4 py-6">
-            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
-            <p className="text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
-              Verifying cast...
-            </p>
           </div>
         )}
 
@@ -159,7 +148,7 @@ export function ShareVerificationModal({ onClose, onSuccess }: ShareVerification
               </p>
             </div>
             <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-              Please try again later.
+              Please try again later or contact support.
             </p>
             <button
               onClick={onClose}
@@ -205,7 +194,7 @@ export function ShareVerificationModal({ onClose, onSuccess }: ShareVerification
                   Verification unavailable
                 </p>
                 <p className="text-[13px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                  Verification service is experiencing issues. Please try again in a few minutes.
+                  The verification service is experiencing issues. Please try again in a few minutes.
                 </p>
               </div>
             </div>
