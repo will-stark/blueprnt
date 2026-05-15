@@ -55,24 +55,24 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   const router = useRouter()
 
   const handleSignOut = useCallback(async () => {
-    // Clear all chat state immediately so previous chats aren't visible after redirect
     setChats([])
     setActiveChatId('')
     setMessages([])
     setInputValue('')
     setPendingChat(null)
+    setIsAdmin(false)
+    setShowAdmin(false)
     await logout()
     router.push('/')
   }, [logout, router])
 
-  // Debug: log whenever user state changes
+  // Clear admin state whenever the user becomes anonymous (sign-out, session expiry)
   useEffect(() => {
-    console.log('[APP-DEBUG] User state changed:', {
-      userType: realUser?.type,
-      hasFarcasterData: realUser?.type === 'farcaster' ? !!realUser.farcaster : false,
-      fid: realUser?.type === 'farcaster' ? realUser.farcaster?.fid : undefined,
-    })
-  }, [realUser])
+    if (!realUser || realUser.type === 'anonymous') {
+      setIsAdmin(false)
+      setShowAdmin(false)
+    }
+  }, [realUser?.type])
 
   const [showSplash, setShowSplash] = useState(!skipSplash)
 
