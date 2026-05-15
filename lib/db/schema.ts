@@ -59,15 +59,18 @@ export const messages = pgTable('messages', {
 // transactions — onchain USDC payments; chain_id 8453 = Base
 // ---------------------------------------------------------------------------
 export const transactions = pgTable('transactions', {
-  id:          uuid('id').primaryKey().defaultRandom(),
-  userId:      uuid('user_id').references(() => users.id).notNull(),
-  type:        varchar('type', { length: 20 }).notNull(), // 'purchase' | 'tip'
-  amountUsdc:  decimal('amount_usdc', { precision: 10, scale: 6 }).notNull(),
-  txHash:      varchar('tx_hash', { length: 66 }).notNull(),
-  chainId:     integer('chain_id').notNull().default(8453),
-  tier:        integer('tier'),
+  id:           uuid('id').primaryKey().defaultRandom(),
+  userId:       uuid('user_id').references(() => users.id).notNull(),
+  type:         varchar('type', { length: 20 }).notNull(), // 'purchase' | 'edit_refill' | 'tip'
+  amountUsdc:   decimal('amount_usdc', { precision: 10, scale: 6 }).notNull(),
+  txHash:       varchar('tx_hash', { length: 66 }).notNull(),
+  chainId:      integer('chain_id').notNull().default(8453),
+  tier:         integer('tier'),           // legacy — use sku for new rows
+  sku:          integer('sku'),            // contract SKU id (0-3, 10, 20-22)
+  chatId:       uuid('chat_id').references(() => chats.id), // edit refill only
   creditsDelta: integer('credits_delta'),
-  createdAt:   timestamp('created_at').defaultNow(),
+  editsDelta:   integer('edits_delta'),    // edit refill only
+  createdAt:    timestamp('created_at').defaultNow(),
 })
 
 // ---------------------------------------------------------------------------
@@ -90,11 +93,14 @@ export const events = pgTable('events', {
 // processed_events — deduplication ledger; one row per processed tx_hash
 // ---------------------------------------------------------------------------
 export const processedEvents = pgTable('processed_events', {
-  id:          uuid('id').primaryKey().defaultRandom(),
-  txHash:      varchar('tx_hash', { length: 66 }).notNull().unique(),
-  userId:      uuid('user_id').references(() => users.id),
+  id:           uuid('id').primaryKey().defaultRandom(),
+  txHash:       varchar('tx_hash', { length: 66 }).notNull().unique(),
+  userId:       uuid('user_id').references(() => users.id),
+  sku:          integer('sku'),            // contract SKU id
+  chatId:       uuid('chat_id').references(() => chats.id), // edit refill only
   creditsDelta: integer('credits_delta'),
-  processedAt: timestamp('processed_at').defaultNow(),
+  editsDelta:   integer('edits_delta'),    // edit refill only
+  processedAt:  timestamp('processed_at').defaultNow(),
 })
 
 // ---------------------------------------------------------------------------

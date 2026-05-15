@@ -67,6 +67,7 @@ interface ChatViewProps {
   activeChatId?: string
   onChatCreated?: (chat: MockChat) => void
   onEditsUpdate?: (edits: number) => void
+  onOpenEditRefill?: () => void
 }
 
 type ActiveSlideUp = 'none' | 'zero_credits' | 'zero_edits'
@@ -89,6 +90,7 @@ export function ChatView({
   activeChatId,
   onChatCreated,
   onEditsUpdate,
+  onOpenEditRefill,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -609,7 +611,7 @@ export function ChatView({
       {slideUp === 'zero_edits' && (
         <ContinueChatRegistered
           onClose={() => setSlideUp('none')}
-          onPurchase={() => { onOpenPurchase(); setSlideUp('none') }}
+          onPurchaseEdits={() => { setSlideUp('none'); onOpenEditRefill?.() }}
         />
       )}
     </div>

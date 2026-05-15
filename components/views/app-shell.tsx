@@ -8,6 +8,7 @@ import { ChatView } from '@/components/views/chat-view'
 import { AdminView } from '@/components/views/admin-view'
 import { PurchaseModal } from '@/components/modals/purchase-modal'
 import { TipModal, SupportPopup } from '@/components/modals/tip-modal'
+import { EditRefillModal } from '@/components/modals/edit-refill-modal'
 import { TicketModal } from '@/components/modals/ticket-modal'
 import { ShareVerificationModal } from '@/components/modals/share-verification-modal'
 import {
@@ -35,6 +36,7 @@ type ActiveModal =
   | 'none'
   | 'purchase'
   | 'tip'
+  | 'edit_refill'
   | 'ticket'
   | 'share'
   | 'clear_all'
@@ -101,6 +103,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
   const [chatMenuOpenId, setChatMenuOpenId] = useState<string | null>(null)
   const [activeModal, setActiveModal] = useState<ActiveModal>('none')
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [pendingEditRefillChatId, setPendingEditRefillChatId] = useState<string | null>(null)
 
   const [anonymousAllowed, setAnonymousAllowed] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -434,6 +437,13 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     isAdmin,
   }
 
+  const identityId =
+    realUser?.type === 'farcaster' ? String(realUser.farcaster!.fid)
+    : realUser?.type === 'privy' ? (realUser.privyId ?? null)
+    : null
+
+  const walletAddress = realUser?.walletAddress ?? null
+
   const pendingChatObj = chats.find((c) => c.id === pendingDeleteId)
   const pendingRenameChat = chats.find((c) => c.id === pendingRenameId)
 
@@ -504,35 +514,61 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
             onLogin={login}
             onGenerate={user.type === 'anonymous' ? () => setCredits(0) : undefined}
             isMobile={isMobile}
-            identityId={
-              realUser?.type === 'farcaster' ? String(realUser.farcaster!.fid)
-              : realUser?.type === 'privy' ? (realUser.privyId ?? null)
-              : null
-            }
+            identityId={identityId}
             anonymousId={anonymousId}
             activeChatId={activeChatId}
             onChatCreated={handleChatCreated}
             onEditsUpdate={setEdits}
+            onOpenEditRefill={() => {
+              setPendingEditRefillChatId(activeChatId || null)
+              setActiveModal('edit_refill')
+            }}
           />
         )}
       </div>
 
       {activeModal === 'purchase' && (
-        <PurchaseModal onClose={close} userType={user.type} />
+        <PurchaseModal
+          onClose={close}
+          userType={user.type}
+          identityId={identityId}
+          walletAddress={walletAddress}
+          onSuccess={(creditsAdded) => setCredits((prev) => prev + creditsAdded)}
+        />
       )}
       {activeModal === 'tip' && (
         user.type === 'anonymous'
           ? <SupportPopup onClose={close} />
-          : <TipModal onClose={close} userType={user.type} />
+          : <TipModal
+              onClose={close}
+              userType={user.type}
+              identityId={identityId}
+              walletAddress={walletAddress}
+            />
+      )}
+      {activeModal === 'edit_refill' && pendingEditRefillChatId && (
+        <EditRefillModal
+          onClose={close}
+          userType={user.type}
+          identityId={identityId}
+          walletAddress={walletAddress}
+          chatId={pendingEditRefillChatId}
+          onSuccess={(editsAdded) => {
+            setEdits((prev) => prev + editsAdded)
+            setChats((prev) =>
+              prev.map((c) =>
+                c.id === pendingEditRefillChatId
+                  ? { ...c, editsRemaining: c.editsRemaining + editsAdded }
+                  : c
+              )
+            )
+          }}
+        />
       )}
       {activeModal === 'ticket' && (
         <TicketModal
           onClose={close}
-          identityId={
-            realUser?.type === 'farcaster' ? String(realUser.farcaster!.fid)
-            : realUser?.type === 'privy' ? (realUser.privyId ?? undefined)
-            : undefined
-          }
+          identityId={identityId ?? undefined}
           identityType={realUser?.type !== 'anonymous' ? realUser?.type : undefined}
         />
       )}
@@ -540,11 +576,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
         <ShareVerificationModal
           onClose={close}
           onSuccess={handleShareSuccess}
-          identityId={
-            realUser?.type === 'farcaster' ? String(realUser.farcaster!.fid)
-            : realUser?.type === 'privy' ? (realUser.privyId ?? undefined)
-            : undefined
-          }
+          identityId={identityId ?? undefined}
         />
       )}
       {activeModal === 'clear_all' && (

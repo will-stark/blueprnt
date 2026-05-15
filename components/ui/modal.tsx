@@ -5,14 +5,15 @@ import { X } from 'lucide-react'
 
 interface ModalProps {
   title?: string
-  onClose: () => void
+  onClose?: () => void
   children: React.ReactNode
   maxWidth?: string
 }
 
 export function Modal({ title, onClose, children, maxWidth = 'max-w-md' }: ModalProps) {
-  // Close on Escape
+  // Close on Escape (only when onClose is provided)
   useEffect(() => {
+    if (!onClose) return
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
@@ -42,14 +43,16 @@ export function Modal({ title, onClose, children, maxWidth = 'max-w-md' }: Modal
             <h2 className="text-[16px] font-medium" style={{ color: 'var(--text-primary)' }}>
               {title}
             </h2>
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors duration-200 hover:bg-[var(--bg-raised)]"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {onClose && (
+              <button
+                onClick={onClose}
+                aria-label="Close"
+                className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors duration-200 hover:bg-[var(--bg-raised)]"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
         {children}

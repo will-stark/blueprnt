@@ -1,23 +1,19 @@
 'use client'
 
-import { useState } from 'react'
 import { Check, Loader2, AlertCircle } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
-import { CREDIT_OPTIONS } from '@/lib/mock-data'
-import { SKU, type SkuId } from '@/lib/contracts'
+import { SKU } from '@/lib/contracts'
 import { usePayment } from '@/hooks/use-payment'
 import type { UserType } from '@/lib/mock-data'
 
-interface PurchaseModalProps {
+interface EditRefillModalProps {
   onClose: () => void
   userType: UserType
   identityId?: string | null
   walletAddress?: string | null
-  onSuccess?: (creditsAdded: number) => void
+  chatId: string
+  onSuccess?: (editsAdded: number) => void
 }
-
-// Ordered to match CREDIT_OPTIONS tiers 0–3
-const TIER_TO_SKU: SkuId[] = [SKU.CREDIT_1, SKU.CREDIT_2, SKU.CREDIT_12, SKU.CREDIT_25]
 
 const STATUS_LABEL: Record<string, string> = {
   checking:   'Checking wallet…',
@@ -27,36 +23,35 @@ const STATUS_LABEL: Record<string, string> = {
   success:    'Purchase complete!',
 }
 
-export function PurchaseModal({
+export function EditRefillModal({
   onClose,
   userType,
   identityId,
   walletAddress,
+  chatId,
   onSuccess,
-}: PurchaseModalProps) {
-  const [selected, setSelected] = useState<number | null>(null)
+}: EditRefillModalProps) {
   const { status, error, pay, reset } = usePayment()
 
   const isBusy = status !== 'idle' && status !== 'success' && status !== 'error'
   const isSuccess = status === 'success'
 
   async function handlePurchase() {
-    if (selected === null || !identityId || !walletAddress) return
-    const sku = TIER_TO_SKU[selected]
+    if (!identityId || !walletAddress) return
 
     await pay({
-      sku,
+      sku: SKU.EDIT_REFILL,
       userType: userType as 'farcaster' | 'privy',
       identityId,
       walletAddress,
-      onSuccess: ({ creditsAdded }) => {
-        onSuccess?.(creditsAdded ?? 0)
+      chatId,
+      onSuccess: ({ editsAdded }) => {
+        onSuccess?.(editsAdded ?? 10)
       },
     })
   }
 
   if (isSuccess) {
-    const credits = selected !== null ? CREDIT_OPTIONS[selected].blueprints : 0
     return (
       <Modal title="Purchase complete" onClose={onClose}>
         <div className="p-6 space-y-4 text-center">
@@ -67,7 +62,7 @@ export function PurchaseModal({
             <Check className="w-6 h-6" style={{ color: 'var(--success)' }} />
           </div>
           <p className="text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
-            {credits} credit{credits !== 1 ? 's' : ''} added to your account.
+            10 edits added to this chat.
           </p>
           <button
             onClick={onClose}
@@ -82,7 +77,7 @@ export function PurchaseModal({
   }
 
   return (
-    <Modal title="Purchase credits" onClose={isBusy ? undefined : onClose}>
+    <Modal title="Purchase edits" onClose={isBusy ? undefined : onClose}>
       <div className="p-6 space-y-5">
         {/* Network indicator */}
         <div
@@ -100,41 +95,25 @@ export function PurchaseModal({
           </span>
         </div>
 
-        {/* Credit options */}
-        <div className="space-y-2">
-          {CREDIT_OPTIONS.map((option) => (
-            <button
-              key={option.tier}
-              onClick={() => { if (!isBusy) { setSelected(option.tier); reset() } }}
-              disabled={isBusy}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border-[0.5px] text-left transition-all duration-200 hover:border-[var(--border-strong)] disabled:opacity-60"
-              style={{
-                borderColor: selected === option.tier ? 'var(--accent)' : 'var(--border)',
-                backgroundColor: selected === option.tier ? 'var(--accent-light)' : 'var(--bg-surface)',
-              }}
-            >
-              <div>
-                <span className="text-[13px] font-medium block" style={{ color: 'var(--text-primary)' }}>
-                  {option.label}
-                </span>
-                <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                  {option.blueprints} {option.blueprints === 1 ? 'blueprint' : 'blueprints'} · {option.edits} edits each
-                  {option.perGen && ` · ${option.perGen}/gen`}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {option.price}
-                </span>
-                {selected === option.tier && !isBusy && (
-                  <Check className="w-4 h-4" style={{ color: 'var(--accent)' }} />
-                )}
-              </div>
-            </button>
-          ))}
+        {/* SKU detail */}
+        <div
+          className="flex items-center justify-between px-4 py-3 rounded-xl border-[0.5px]"
+          style={{ borderColor: 'var(--accent)', backgroundColor: 'var(--accent-light)' }}
+        >
+          <div>
+            <span className="text-[13px] font-medium block" style={{ color: 'var(--text-primary)' }}>
+              10 edits
+            </span>
+            <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+              For this chat only
+            </span>
+          </div>
+          <span className="text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
+            $0.25
+          </span>
         </div>
 
-        {/* Status / progress */}
+        {/* Status */}
         {isBusy && (
           <div
             className="flex items-center gap-2 px-4 py-3 rounded-xl border-[0.5px] border-[var(--border)]"
@@ -162,13 +141,21 @@ export function PurchaseModal({
         {!isBusy && (
           <button
             onClick={handlePurchase}
-            disabled={selected === null || !identityId || !walletAddress}
+            disabled={!identityId || !walletAddress}
             className="w-full py-2.5 rounded-lg text-[13px] font-medium text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: 'var(--accent)' }}
           >
-            {selected === null
-              ? 'Select an option'
-              : `Purchase ${CREDIT_OPTIONS[selected].label.toLowerCase()}`}
+            Purchase 10 edits — $0.25
+          </button>
+        )}
+
+        {error && !isBusy && (
+          <button
+            onClick={reset}
+            className="w-full py-2 text-[13px] transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Try again
           </button>
         )}
 

@@ -5,10 +5,10 @@ import { SlideUp } from '@/components/ui/slide-up'
 // Registered user: purchase edits or wait
 interface ContinueChatRegisteredProps {
   onClose: () => void
-  onPurchase: () => void
+  onPurchaseEdits: () => void
 }
 
-export function ContinueChatRegistered({ onClose, onPurchase }: ContinueChatRegisteredProps) {
+export function ContinueChatRegistered({ onClose, onPurchaseEdits }: ContinueChatRegisteredProps) {
   return (
     <SlideUp onClose={onClose}>
       <div className="space-y-4">
@@ -30,7 +30,7 @@ export function ContinueChatRegistered({ onClose, onPurchase }: ContinueChatRegi
         </div>
 
         <button
-          onClick={() => { onPurchase(); onClose() }}
+          onClick={() => { onPurchaseEdits(); onClose() }}
           className="w-full py-2.5 rounded-lg text-[13px] font-medium text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
           style={{ backgroundColor: 'var(--accent)' }}
         >
