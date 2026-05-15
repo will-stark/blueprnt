@@ -130,10 +130,7 @@ export async function POST(req: NextRequest) {
     console.log('[GENERATE] Anon stream start. msgHash=%s', hashForLogging(message))
     return buildStream(payload, async (fullText) => {
       const validation = validateBlueprint(fullText)
-      if (!validation.valid) {
-        console.warn('[GENERATE] Anon blueprint invalid: %s', validation.reason)
-        throw new Error('blueprint_invalid')
-      }
+      if (!validation.valid) throwBlueprintError(fullText, validation.reason ?? 'invalid')
       await logAnonymousGeneration(anonymousId)
       console.log('[GENERATE] Anon done. duration=%dms', Date.now() - t0)
     })
@@ -159,7 +156,7 @@ export async function POST(req: NextRequest) {
   if (kind === 'off_topic') {
     await logOffTopicStrike(identityId)
     const errorMsg = isSecondStrike
-      ? 'Your account has been flagged for repeated off-topic messages. Please describe an app idea.'
+      ? 'This is not a general purpose chatbot. Kindly stick to describing an app idea.'
       : 'Blueprnt generates technical blueprints for app ideas. Please describe the app you want to build.'
     return Response.json({ error: errorMsg }, { status: 400 })
   }
@@ -195,7 +192,7 @@ export async function POST(req: NextRequest) {
 
     return buildStream(payload, async (fullText) => {
       const validation = validateBlueprint(fullText)
-      if (!validation.valid) throw new Error('blueprint_invalid')
+      if (!validation.valid) throwBlueprintError(fullText, validation.reason ?? 'invalid')
 
       const newBranch = [{ content: encrypt(fullText), timestamp: new Date().toISOString() }]
       await db
@@ -251,10 +248,7 @@ export async function POST(req: NextRequest) {
 
   return buildStream(payload, async (fullText) => {
     const validation = validateBlueprint(fullText)
-    if (!validation.valid) {
-      console.warn('[GENERATE] Blueprint invalid: %s', validation.reason)
-      throw new Error('blueprint_invalid')
-    }
+    if (!validation.valid) throwBlueprintError(fullText, validation.reason ?? 'invalid')
 
     const title = message.slice(0, 60).trim() + (message.length > 60 ? '...' : '')
     const encryptedMessage = encrypt(message)
@@ -309,6 +303,16 @@ export async function POST(req: NextRequest) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// If validation fails and the model returned very little text, it likely produced
+// a refusal rather than a blueprint — surface a helpful message instead.
+function throwBlueprintError(fullText: string, reason: string): never {
+  console.warn('[GENERATE] Blueprint invalid: %s | len=%d', reason, fullText.length)
+  if (fullText.trim().length < 400) {
+    throw new Error('Blueprnt generates technical blueprints for app ideas. Please describe the app you want to build.')
+  }
+  throw new Error('blueprint_invalid')
+}
 
 async function maybeFireCapAlert(currentCount: number, cap: number): Promise<void> {
   const threshold = Math.floor(cap * 0.8)

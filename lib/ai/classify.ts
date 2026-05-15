@@ -1,6 +1,5 @@
 import type { ClassifyResult, GenerateRequestBody, Platform } from './types'
 
-// Farcaster keyword detection — no AI needed
 const FARCASTER_KEYWORDS = [
   'farcaster', 'warpcast', 'mini app', 'miniapp', 'frame', ' fid', 'neynar',
   'cast ', 'casts', 'channel', 'fc:', '/channel', 'wc:', 'moxie',
@@ -13,9 +12,39 @@ const BLOCKLIST = [
 
 const MIN_LENGTH = 10
 
+// Patterns that strongly indicate a factual/general-knowledge question rather
+// than an app idea. Checked only when no build-intent word is present.
+const QUESTION_PATTERNS = [
+  /^(what is|what's|what are|what were|what was)\s+the\s+/i,
+  /^(what is|what's|what are)\s+(a|an)\s+/i,
+  /^who\s+(is|was|are|were)\s+/i,
+  /^when\s+(was|is|did|were|will|does)\s+/i,
+  /^where\s+(is|are|was|were)\s+/i,
+  /^(how many|how much|how old|how far|how long|how tall|how big)\s+/i,
+  /^(tell me|explain|describe)\s+(what|who|where|when|why|how)\s+/i,
+  /^(give me|find me|search for)\s+(information|facts|data|the answer)/i,
+  /^(name of|what.{0,20}name of)\s+the\s+/i,
+  /^(do you know|can you tell me|i want to know)\s+(what|who|where|when|why|how|the)/i,
+]
+
+// If any of these appear, the message is probably about building something
+// regardless of how it's phrased — allow through even if it looks like a question.
+const BUILD_INTENT = [
+  'build', 'creat', 'develop', 'design', 'make a', 'make an',
+  'app', 'platform', 'website', 'web app', 'mobile', 'tool', 'software',
+  'system', 'product', 'service', 'saas', 'marketplace', 'dashboard',
+  'api', 'game', 'clone', 'startup', 'feature', 'mvp',
+]
+
+function isOffTopicQuestion(lower: string): boolean {
+  const hasBuildIntent = BUILD_INTENT.some((kw) => lower.includes(kw))
+  if (hasBuildIntent) return false
+  return QUESTION_PATTERNS.some((p) => p.test(lower))
+}
+
 export interface ClassifyInput {
   body: GenerateRequestBody
-  priorStrikeWithinWindow: boolean // caller checks events table
+  priorStrikeWithinWindow: boolean
 }
 
 export function classifyRequest(input: ClassifyInput): ClassifyResult {
@@ -23,10 +52,10 @@ export function classifyRequest(input: ClassifyInput): ClassifyResult {
   const { message, chatId, isRegenerate } = body
   const lower = message.toLowerCase()
 
-  // Hard off-topic: too short or blocklisted
   const isBlocked =
     message.trim().length < MIN_LENGTH ||
-    BLOCKLIST.some((w) => lower.includes(w))
+    BLOCKLIST.some((w) => lower.includes(w)) ||
+    isOffTopicQuestion(lower)
 
   if (isBlocked) {
     return {
@@ -36,7 +65,6 @@ export function classifyRequest(input: ClassifyInput): ClassifyResult {
     }
   }
 
-  // Regenerate flag takes priority over chatId logic
   if (isRegenerate) {
     return {
       kind: 'regenerate',
@@ -45,7 +73,6 @@ export function classifyRequest(input: ClassifyInput): ClassifyResult {
     }
   }
 
-  // chatId present = working inside an existing chat = edit
   if (chatId) {
     return {
       kind: 'edit_blueprint',
@@ -54,7 +81,6 @@ export function classifyRequest(input: ClassifyInput): ClassifyResult {
     }
   }
 
-  // No chatId = first message = new blueprint
   return {
     kind: 'new_blueprint',
     platform: detectPlatform(lower),
