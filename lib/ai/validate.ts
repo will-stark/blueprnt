@@ -1,8 +1,15 @@
 import type { ValidationResult } from './types'
 
-// Prefix-match: model can use editorial titles ("## Section 1 — What This App Actually Is")
-// while validation only checks for the section number anchor.
-const SECTION_PREFIXES = [
+// Accept em dash (—), en dash (–), or regular hyphen (-) — model may vary
+const SECTION_PATTERNS = [
+  /^## Section 1\s*[—–-]/m,
+  /^## Section 2\s*[—–-]/m,
+  /^## Section 3\s*[—–-]/m,
+  /^## Section 4\s*[—–-]/m,
+  /^## Section 5\s*[—–-]/m,
+]
+
+const SECTION_LABELS = [
   '## Section 1 —',
   '## Section 2 —',
   '## Section 3 —',
@@ -12,40 +19,36 @@ const SECTION_PREFIXES = [
 
 const COST_TIERS = ['Free / OSS', 'Indie Builder', 'At Scale']
 
-function findSectionStart(text: string, prefix: string): number {
-  return text.indexOf(prefix)
-}
-
 export function validateBlueprint(text: string): ValidationResult {
   const missing: string[] = []
   const positions: number[] = []
 
-  for (const prefix of SECTION_PREFIXES) {
-    const pos = findSectionStart(text, prefix)
-    if (pos === -1) {
-      missing.push(prefix)
+  for (let i = 0; i < SECTION_PATTERNS.length; i++) {
+    const match = SECTION_PATTERNS[i].exec(text)
+    if (!match) {
+      missing.push(SECTION_LABELS[i])
     } else {
-      positions.push(pos)
+      positions.push(match.index)
     }
   }
 
   if (missing.length > 0) {
+    console.warn('[VALIDATE] Missing sections:', missing, '| Output prefix:', text.slice(0, 200))
     return { valid: false, missing, reason: 'Missing required section headings' }
   }
 
   // Verify sections are non-empty
-  for (let i = 0; i < SECTION_PREFIXES.length; i++) {
+  for (let i = 0; i < SECTION_PATTERNS.length; i++) {
     const start = positions[i]
-    // Find end of this heading line (skip to after the newline)
     const headingEnd = text.indexOf('\n', start)
     const contentStart = headingEnd === -1 ? start : headingEnd + 1
-    const contentEnd = i + 1 < SECTION_PREFIXES.length ? positions[i + 1] : text.length
+    const contentEnd = i + 1 < SECTION_PATTERNS.length ? positions[i + 1] : text.length
 
     const sectionContent = text.slice(contentStart, contentEnd).trim()
     if (sectionContent.length < 20) {
       return {
         valid: false,
-        missing: [SECTION_PREFIXES[i]],
+        missing: [SECTION_LABELS[i]],
         reason: `Section ${i + 1} appears empty`,
       }
     }

@@ -3,7 +3,6 @@ import {
   coreIdentity,
   editModeRules,
   farcasterRules,
-  newBlueprintClosing,
   outputStructure,
   regenerateRules,
   section1Rules,
@@ -46,7 +45,7 @@ export function buildPrompt(
 
     return {
       system,
-      user: message + newBlueprintClosing,
+      user: message,
     }
   }
 

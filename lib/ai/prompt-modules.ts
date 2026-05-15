@@ -344,7 +344,3 @@ A production Farcaster Mini App needs a valid \`/.well-known/farcaster.json\` de
 
 Domain consistency is critical: the registered app domain, manifest domain, embed URLs, and notification target URLs must all match. \`www\` and non-\`www\` are treated as different domains. This is a common production bug — call it out in the blueprint wherever relevant.`
 
-export const newBlueprintClosing = `
-
----
-*Would you like to make any edits or expand a specific section?*`
