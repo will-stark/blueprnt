@@ -214,7 +214,7 @@ export const ONBOARDING_SLIDES = [
     title: 'Start building',
     body_farcaster: 'All payments in USDC on Base. You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.',
     body_privy: 'You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.\n\nAll payments in USDC on Base.',
-    body_anonymous: 'You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.\n\nAll payments in USDC on Base.',
+    body_anonymous: 'Create a free account and get 3 blueprints instantly — no payment required.\n\nAfter that, a single blueprint costs just $0.50 in USDC on Base.',
     // body_web kept for backward compatibility
     body_web: 'You get 3 free blueprints to start. After that, a single blueprint costs just $0.50.\n\nAll payments in USDC on Base.',
     visual: 'build',

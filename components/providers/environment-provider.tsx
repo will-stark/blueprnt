@@ -103,7 +103,12 @@ export function EnvironmentProvider({ children }: { children: React.ReactNode })
 
           // Fire-and-forget — do not block rendering
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const fcWalletAddress: string | undefined = (fc as any).wallet?.address
+          const fca = fc as any
+          const fcWalletAddress: string | undefined =
+            fca.verifiedAddresses?.ethAddresses?.[0] ??
+            fca.custodyAddress ??
+            fca.custody ??
+            fca.wallet?.address
           console.log('[FC-DEBUG] Calling upsert-user API...')
           fetch('/api/auth/upsert-user', {
             method: 'POST',

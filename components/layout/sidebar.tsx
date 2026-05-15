@@ -128,7 +128,6 @@ function ChatListItem({
         )}
       </div>
 
-      {/* Context menu */}
       {menuOpen && (
         <div
           className="absolute right-0 top-full mt-1 z-20 bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-xl overflow-hidden py-1"
@@ -182,13 +181,12 @@ export function Sidebar({
 
   const sidebarContent = (
     <aside
-      className="w-[260px] h-screen flex flex-col overflow-hidden border-r-[0.5px] border-[var(--border)]"
+      className="w-[260px] h-[100dvh] flex flex-col overflow-hidden border-r-[0.5px] border-[var(--border)]"
       style={{ backgroundColor: 'var(--bg-raised)' }}
     >
-      {/* Logo */}
-      <div className="p-4 border-b-[0.5px] border-[var(--border)] flex items-center justify-between">
+      {/* Logo row */}
+      <div className="p-4 border-b-[0.5px] border-[var(--border)] flex items-center justify-between shrink-0">
         <Logo size="sidebar" />
-        {/* Close button (mobile only) */}
         <button
           onClick={onClose}
           aria-label="Close sidebar"
@@ -200,7 +198,7 @@ export function Sidebar({
       </div>
 
       {/* New chat button */}
-      <div className="p-3">
+      <div className="p-3 shrink-0">
         <button
           onClick={onNewChat}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
@@ -211,7 +209,44 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* Chat list — only shows saved chats (pending new chats are not listed) */}
+      {/* Identity block — ABOVE chat list so sign-out is always accessible */}
+      <div className="px-3 pb-2 shrink-0">
+        {isAnonymous ? (
+          <button
+            onClick={onSignIn}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150 text-left border-[0.5px] border-[var(--border)]"
+            style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-muted)' }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-surface)' }}
+          >
+            <LogIn className="w-4 h-4 shrink-0" />
+            <span className="flex-1">Sign in / Sign up</span>
+            <ThemeToggle />
+          </button>
+        ) : (
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2 min-w-0 px-1 py-1">
+              <UserPFP user={user} size={28} />
+              <div className="flex-1 min-w-0">
+                <span className="text-[13px] truncate block" style={{ color: 'var(--text-secondary)' }}>
+                  {isFarcaster ? `@${user.username}` : (user.email ?? user.username)}
+                </span>
+              </div>
+              <ThemeToggle />
+            </div>
+            {user.type === 'privy' && (
+              <SidebarItem
+                icon={LogOut}
+                label="Sign out"
+                variant="default"
+                onClick={onSignOut}
+              />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Chat list */}
       <div className="flex-1 overflow-y-auto px-2">
         <div
           className="text-[11px] uppercase tracking-wider px-3 py-2"
@@ -244,7 +279,7 @@ export function Sidebar({
       </div>
 
       {/* Utility actions */}
-      <div className="border-t-[0.5px] border-[var(--border)] p-3 space-y-0.5">
+      <div className="border-t-[0.5px] border-[var(--border)] p-3 space-y-0.5 shrink-0">
         {isFarcaster && (
           <SidebarItem
             icon={Gift}
@@ -258,7 +293,7 @@ export function Sidebar({
         <SidebarItem
           icon={Coins}
           label={isAnonymous ? 'Create account to top up' : 'Top-up credits'}
-          onClick={onOpenPurchase}
+          onClick={isAnonymous ? onSignIn : onOpenPurchase}
         />
 
         <SidebarItem
@@ -284,47 +319,6 @@ export function Sidebar({
           />
         )}
       </div>
-
-      {/* User / identity block */}
-      <div className="border-t-[0.5px] border-[var(--border)] p-3">
-        {isAnonymous ? (
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={onSignIn}
-              className="flex flex-1 items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150 text-left"
-              style={{ color: 'var(--text-secondary)' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-surface)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '' }}
-            >
-              <LogIn className="w-4 h-4 shrink-0" />
-              Sign in / Sign up
-            </button>
-            <ThemeToggle />
-          </div>
-        ) : (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <UserPFP user={user} size={32} />
-              <div className="flex-1 min-w-0">
-                <span className="text-[13px] truncate block" style={{ color: 'var(--text-secondary)' }}>
-                  {isFarcaster ? `@${user.username}` : (user.email ?? user.username)}
-                </span>
-              </div>
-              <ThemeToggle />
-            </div>
-            {user.type === 'privy' && (
-              <button
-                onClick={onSignOut}
-                className="flex items-center gap-2 px-1 py-1 text-[12px] transition-colors hover:underline"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                <LogOut className="w-3 h-3" />
-                Sign out
-              </button>
-            )}
-          </div>
-        )}
-      </div>
     </aside>
   )
 
@@ -338,12 +332,10 @@ export function Sidebar({
       {/* Mobile: overlay */}
       {isOpen && (
         <div className="md:hidden fixed inset-0 z-40 flex">
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/40"
             onClick={onClose}
           />
-          {/* Panel slides in */}
           <div className="relative animate-[sidebarIn_250ms_ease-out]" style={{ boxShadow: 'var(--shadow-lg)' }}>
             {sidebarContent}
           </div>

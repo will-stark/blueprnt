@@ -49,31 +49,31 @@ export function ContinueChatRegistered({ onClose, onPurchase }: ContinueChatRegi
   )
 }
 
-// Anonymous user: create account only
+// Anonymous user: sign in to generate
 interface ContinueChatAnonProps {
   onClose: () => void
-  onCreateAccount: () => void
+  onLogin: () => void
 }
 
-export function ContinueChatAnon({ onClose, onCreateAccount }: ContinueChatAnonProps) {
+export function ContinueChatAnon({ onClose, onLogin }: ContinueChatAnonProps) {
   return (
     <SlideUp onClose={onClose}>
       <div className="space-y-4">
         <div>
           <h3 className="text-[16px] font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-            {"You've used your free blueprint"}
+            Log in to generate your blueprint
           </h3>
           <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-            Create a free account to get 3 more blueprints and save your chats.
+            Create a free account to get 3 blueprints, save your chats, and pick up where you left off.
           </p>
         </div>
 
         <button
-          onClick={() => { onCreateAccount(); onClose() }}
+          onClick={() => { onLogin(); onClose() }}
           className="w-full py-2.5 rounded-lg text-[13px] font-medium text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
           style={{ backgroundColor: 'var(--accent)' }}
         >
-          Create account
+          Log in / Sign up
         </button>
 
         <button

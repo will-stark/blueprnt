@@ -1,12 +1,11 @@
 'use client'
 
 import { useRef, useEffect, useState, useCallback } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { ChatBox } from '@/components/chat/chat-box'
 import { PromptTips } from '@/components/chat/prompt-tips'
 import { UserMessage, AIMessage, AILoadingMessage, ZeroEditsMessage } from '@/components/chat/message'
-import { ZeroCreditsSlideUp } from '@/components/modals/continue-chat-slideup'
-import { ContinueChatRegistered, ContinueChatAnon } from '@/components/modals/continue-chat-slideup'
-import { AccountPromptModal } from '@/components/modals/confirm-modals'
+import { ZeroCreditsSlideUp, ContinueChatRegistered, ContinueChatAnon } from '@/components/modals/continue-chat-slideup'
 import type { MockUser, MockMessage, MockChat } from '@/lib/mock-data'
 
 interface ChatViewProps {
@@ -29,7 +28,7 @@ interface ChatViewProps {
   onEditsUpdate?: (edits: number) => void
 }
 
-type ActiveSlideUp = 'none' | 'zero_credits' | 'zero_edits' | 'anon_limit' | 'account_prompt'
+type ActiveSlideUp = 'none' | 'zero_credits' | 'zero_edits' | 'anon_limit'
 
 export function ChatView({
   user,
@@ -57,6 +56,14 @@ export function ChatView({
   const [activeBranchIndices, setActiveBranchIndices] = useState<Record<string, number>>({})
   const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null)
   const [showTakingLonger, setShowTakingLonger] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // Auto-clear error toast after 5s
+  useEffect(() => {
+    if (!errorMsg) return
+    const t = setTimeout(() => setErrorMsg(null), 5000)
+    return () => clearTimeout(t)
+  }, [errorMsg])
 
   const editsRef = useRef(edits)
   const creditsRef = useRef(credits)
@@ -115,7 +122,7 @@ export function ChatView({
     response: Response,
     onText: (chunk: string, accumulated: string) => void,
     onDone: (accumulated: string, meta: Record<string, unknown>) => void,
-    onError: () => void,
+    onError: (msg?: string) => void,
   ) => {
     const reader = response.body!.getReader()
     const decoder = new TextDecoder()
@@ -146,8 +153,9 @@ export function ChatView({
         }
 
         if (data.error) {
-          console.error('[CHAT] Generation error from server:', data.error)
-          onError()
+          const msg = typeof data.error === 'string' ? data.error : 'Generation failed. Please try again.'
+          console.error('[CHAT] Generation error from server:', msg)
+          onError(msg)
           return
         }
 
@@ -236,11 +244,22 @@ export function ChatView({
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
         console.error('[CHAT] API error: status=%d error=%s', response.status, err.error)
-        if (isAnonymous) setSlideUp('anon_limit')
-        else if (err.error === 'no_credits') setSlideUp('zero_credits')
-        else if (err.error === 'no_edits') setSlideUp('zero_edits')
         setIsStreaming(false)
         setStreamingContent('')
+
+        if (err.error === 'no_credits') {
+          setSlideUp('zero_credits')
+        } else if (err.error === 'no_edits') {
+          setSlideUp('zero_edits')
+        } else if (err.error === 'rate_limited') {
+          setErrorMsg("You're sending messages too quickly. Please wait a moment.")
+        } else if (err.error === 'daily_cap_exceeded') {
+          setErrorMsg('Service is temporarily at capacity. Please try again later.')
+        } else if (err.error && typeof err.error === 'string' && err.error.length < 200) {
+          setErrorMsg(err.error)
+        } else {
+          setErrorMsg('Something went wrong. Please try again.')
+        }
         return
       }
 
@@ -253,6 +272,7 @@ export function ChatView({
         (accumulated, meta) => {
           console.log('[CHAT] Stream done: chatId=%s title=%s',
             meta.chatId ?? 'anon', meta.title ?? '—')
+          setErrorMsg(null)
 
           const assistantMsg: MockMessage = {
             id: (Date.now() + 1).toString(),
@@ -291,9 +311,10 @@ export function ChatView({
             }
           }
         },
-        () => {
+        (msg) => {
           setIsStreaming(false)
           setStreamingContent('')
+          if (msg) setErrorMsg(msg)
         },
       )
     } catch (err) {
@@ -479,6 +500,21 @@ export function ChatView({
         )}
       </div>
 
+      {/* Error toast */}
+      {errorMsg && (
+        <div className="shrink-0 px-4 md:px-8 pt-3">
+          <div className="max-w-2xl mx-auto">
+            <div
+              className="flex items-start gap-2.5 px-4 py-3 rounded-xl border-[0.5px] border-[var(--danger)] text-[13px]"
+              style={{ backgroundColor: 'var(--danger-light)', color: 'var(--danger)' }}
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{errorMsg}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Input area */}
       <div
         className="shrink-0 px-4 md:px-8 pt-4 border-t-[0.5px] border-[var(--border)]"
@@ -523,11 +559,8 @@ export function ChatView({
       {slideUp === 'anon_limit' && (
         <ContinueChatAnon
           onClose={() => setSlideUp('none')}
-          onCreateAccount={() => setSlideUp('account_prompt')}
+          onLogin={() => { setSlideUp('none'); onLogin?.() }}
         />
-      )}
-      {slideUp === 'account_prompt' && (
-        <AccountPromptModal onClose={() => setSlideUp('none')} onLogin={onLogin} />
       )}
     </div>
   )

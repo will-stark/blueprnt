@@ -1,6 +1,6 @@
 'use client'
 
-import { Menu, Gift, HelpCircle } from 'lucide-react'
+import { Menu, Gift, HelpCircle, LogIn } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
 import { Pill } from '@/components/ui/pill'
 import { UserPFP } from '@/components/ui/user-pfp'
@@ -32,7 +32,6 @@ export function Header({
   const isRegistered = user.type !== 'anonymous'
   const isAnonymous = user.type === 'anonymous'
   const isFarcaster = user.type === 'farcaster'
-  const isPrivy = user.type === 'privy'
   const creditsZero = credits === 0
   const editsZero = (edits ?? 1) === 0
 
@@ -54,23 +53,23 @@ export function Header({
         <Logo size="header" />
       </div>
 
-      {/* Right: pills + icons + PFP */}
+      {/* Right */}
       <div className="flex items-center gap-1.5">
-        {/* Credits pill — visible for all users */}
-        {(isRegistered || isAnonymous) && (
+        {/* Credits pill — registered only */}
+        {isRegistered && (
           <button
-            onClick={creditsZero && isRegistered ? onOpenPurchase : undefined}
-            className={creditsZero && isRegistered ? 'cursor-pointer' : 'cursor-default'}
+            onClick={creditsZero ? onOpenPurchase : undefined}
+            className={creditsZero ? 'cursor-pointer' : 'cursor-default'}
           >
             <Pill
               value={credits}
               label="credits"
-              timerText={creditsZero && isRegistered ? 'New in 23h 12m' : undefined}
+              timerText={creditsZero ? 'New in 23h 12m' : undefined}
             />
           </button>
         )}
 
-        {/* Edits pill — visible after first message */}
+        {/* Edits pill — registered, after first message */}
         {isRegistered && hasFirstMessage && edits !== undefined && (
           <Pill
             value={edits}
@@ -79,34 +78,33 @@ export function Header({
           />
         )}
 
-        {/* Gift icon — Farcaster only */}
+        {/* Gift — Farcaster only */}
         {isFarcaster && onOpenShare && (
           <button
             onClick={onOpenShare}
             aria-label="Share to unlock 2 credits"
             title="Share to unlock 2 credits"
-            className="w-8 h-8 flex items-center justify-center rounded-lg border-[0.5px] border-[var(--border)] transition-all duration-200 hover:bg-[var(--bg-raised)] hover:border-[var(--border-strong)] active:scale-95"
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-secondary)',
-            }}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border-[0.5px] border-[var(--border)] transition-all duration-200 hover:bg-[var(--bg-raised)] active:scale-95"
+            style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)' }}
           >
             <Gift className="w-4 h-4" />
           </button>
         )}
 
-        {/* Help / ticket icon — all users */}
-        <button
-          onClick={onOpenTicket}
-          aria-label="Submit a ticket"
-          title="Submit a ticket"
-          className="w-8 h-8 flex items-center justify-center rounded-lg border-[0.5px] border-[var(--border)] transition-all duration-200 hover:bg-[var(--bg-raised)] hover:border-[var(--border-strong)] active:scale-95"
-          style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)' }}
-        >
-          <HelpCircle className="w-4 h-4" />
-        </button>
+        {/* Ticket / help — registered only */}
+        {isRegistered && (
+          <button
+            onClick={onOpenTicket}
+            aria-label="Submit a ticket"
+            title="Submit a ticket"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border-[0.5px] border-[var(--border)] transition-all duration-200 hover:bg-[var(--bg-raised)] active:scale-95"
+            style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)' }}
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+        )}
 
-        {/* Identity: Farcaster → username + PFP; Privy → nothing; Anonymous → sign in button */}
+        {/* Farcaster: username + PFP */}
         {isFarcaster && (
           <div className="flex items-center gap-2 ml-0.5">
             <span
@@ -118,18 +116,20 @@ export function Header({
             <UserPFP user={user} size={28} />
           </div>
         )}
-        {isPrivy && null}
+
+        {/* Anonymous: sign in button */}
         {isAnonymous && (
           <button
             onClick={onSignIn}
-            className="px-3 py-1.5 rounded-lg border-[0.5px] text-[13px] font-medium transition-all duration-200 hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-[0.5px] text-[13px] font-medium transition-all duration-200 hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
             style={{
               borderColor: 'var(--border-strong)',
               color: 'var(--text-secondary)',
               backgroundColor: 'var(--bg-surface)',
             }}
           >
-            Sign in / Sign up
+            <LogIn className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">Sign in</span>
           </button>
         )}
       </div>
