@@ -17,6 +17,7 @@ import {
   refToChatId,
   type SkuId,
 } from '@/lib/contracts'
+import { alertPurchase } from '@/lib/telegram'
 
 // Public client — module-level singleton
 const publicClient = createPublicClient({
@@ -255,6 +256,15 @@ export async function POST(req: NextRequest) {
     '[CONFIRM] Processed: txHash=%s sku=%d credits+%d edits+%d userId=%s',
     txHash.slice(0, 20) + '…', sku, creditsDelta, editsDelta, user.id.slice(0, 8) + '…'
   )
+
+  alertPurchase({
+    sku,
+    amountUsdc,
+    txHash,
+    username: user.username,
+    identityId,
+    txType,
+  }).catch(() => {})
 
   return NextResponse.json({
     success: true,

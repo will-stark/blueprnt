@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { upsertUser } from '@/lib/db/users'
+import { alertNewUser } from '@/lib/telegram'
 
 export async function POST(req: NextRequest) {
   console.log('[API-DEBUG] /api/auth/upsert-user called')
@@ -25,12 +26,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid identityType' }, { status: 400 })
     }
 
-    const user = await upsertUser({ identityType, identityId, email, username, walletAddress, pfpUrl })
+    const { user, isNew } = await upsertUser({ identityType, identityId, email, username, walletAddress, pfpUrl })
+
     console.log('[API-SUCCESS] User upserted:', {
       userId: user.id,
       identityType: user.identityType,
       creditsRemaining: user.creditsRemaining,
+      isNew,
     })
+
+    if (isNew) {
+      alertNewUser({ identityType, identityId, username }).catch(() => {})
+    }
+
     return NextResponse.json({ user })
   } catch (err) {
     console.error('[API-ERROR] upsert-user failed:', {

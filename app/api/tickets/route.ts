@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { tickets, users, events } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { alertTicket } from '@/lib/telegram'
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     }
 
     const [user] = await db
-      .select({ id: users.id })
+      .select({ id: users.id, username: users.username })
       .from(users)
       .where(eq(users.identityId, identityId))
       .limit(1)
@@ -49,6 +50,13 @@ export async function POST(req: NextRequest) {
         metadata: { identityId, ticketId: ticket.id },
       })
       .catch(() => {})
+
+    alertTicket({
+      identityId,
+      username: user?.username,
+      title: title.trim(),
+      description: description.trim(),
+    }).catch(() => {})
 
     const shortId = ticket.id.replace(/-/g, '').slice(0, 8)
     console.log('[TICKETS] Created: id=%s shortId=%s', ticket.id, shortId)

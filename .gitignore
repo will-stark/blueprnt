@@ -21,6 +21,16 @@ node_modules/
 *.env
 *.env.local
 
+# Contracts — secrets and forge-generated artifacts
+contracts/.env
+contracts/.env.contract
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/lib/
+contracts/.gitmodules
+contracts/foundry.lock
+
 # Next.js
 .next/
 out/

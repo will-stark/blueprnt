@@ -40,7 +40,7 @@ export async function upsertUser({
       })
       .where(eq(users.identityId, identityId))
       .returning()
-    return updated
+    return { user: updated, isNew: false }
   }
 
   const [newUser] = await db
@@ -57,5 +57,5 @@ export async function upsertUser({
     })
     .returning()
 
-  return newUser
+  return { user: newUser, isNew: true }
 }

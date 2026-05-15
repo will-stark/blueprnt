@@ -11,4 +11,4 @@ via_ir = false
 base = "${BASE_RPC_URL}"
 
 [etherscan]
-base = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.org/api" }
+base = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.org/v2/api" }
