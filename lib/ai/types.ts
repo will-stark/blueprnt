@@ -30,6 +30,12 @@ export interface ValidationResult {
   reason?: string
 }
 
+export interface StreamCallbacks {
+  onChunk: (text: string) => void
+  onComplete: (fullText: string) => Promise<void> | void
+  onError: (err: Error) => void
+}
+
 // What the generate route receives from the client
 export interface GenerateRequestBody {
   userType: 'farcaster' | 'privy' | 'anonymous'

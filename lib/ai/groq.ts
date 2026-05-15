@@ -1,49 +1,53 @@
 import type { PromptPayload, StreamCallbacks } from './types'
 
-const PRIMARY_MODEL = 'gemini-2.0-flash'
-const FALLBACK_MODEL = 'gemini-2.0-flash-lite'
-const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
+const PRIMARY_MODEL = 'llama-3.3-70b-versatile'
+const FALLBACK_MODEL = 'llama-3.1-8b-instant'
+const API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
-export async function streamFromGemini(
+export async function streamFromGroq(
   payload: PromptPayload,
   callbacks: StreamCallbacks,
   modelOverride?: string,
 ): Promise<void> {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) throw new Error('GEMINI_API_KEY not set')
+  const apiKey = process.env.GROQ_API_KEY
+  if (!apiKey) {
+    callbacks.onError(new Error('GROQ_API_KEY not set'))
+    return
+  }
 
   const model = modelOverride ?? PRIMARY_MODEL
-  const url = `${API_BASE}/${model}:streamGenerateContent?alt=sse&key=${apiKey}`
-
-  const body = {
-    system_instruction: { parts: [{ text: payload.system }] },
-    contents: [{ role: 'user', parts: [{ text: payload.user }] }],
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 8192,
-    },
-  }
 
   const ac = new AbortController()
   const timer = setTimeout(() => {
-    console.warn(`[GEMINI] Timeout after 50s — aborting model ${model}`)
+    console.warn(`[GROQ] Timeout after 50s — aborting model ${model}`)
     ac.abort()
   }, 50_000)
 
   let res: Response
   try {
-    res = await fetch(url, {
+    res = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: payload.system },
+          { role: 'user', content: payload.user },
+        ],
+        stream: true,
+        temperature: 0.7,
+        max_tokens: 8192,
+      }),
       signal: ac.signal,
     })
   } catch (err) {
     clearTimeout(timer)
-    // Network failure or timeout — try fallback if we haven't already
     if (model !== FALLBACK_MODEL) {
-      console.warn(`[GEMINI] Fetch error for ${model} — trying fallback`)
-      return streamFromGemini(payload, callbacks, FALLBACK_MODEL)
+      console.warn(`[GROQ] Fetch error for ${model} — trying fallback`)
+      return streamFromGroq(payload, callbacks, FALLBACK_MODEL)
     }
     callbacks.onError(err instanceof Error ? err : new Error(String(err)))
     return
@@ -52,11 +56,11 @@ export async function streamFromGemini(
 
   if (!res.ok) {
     const errorText = await res.text().catch(() => '(unreadable)')
-    console.error(`[GEMINI] HTTP ${res.status} from model ${model}:`, errorText.slice(0, 500))
+    console.error(`[GROQ] HTTP ${res.status} from model ${model}:`, errorText.slice(0, 500))
     if (model !== FALLBACK_MODEL) {
-      return streamFromGemini(payload, callbacks, FALLBACK_MODEL)
+      return streamFromGroq(payload, callbacks, FALLBACK_MODEL)
     }
-    callbacks.onError(new Error(`Gemini API error: ${res.status}`))
+    callbacks.onError(new Error(`Groq API error: ${res.status}`))
     return
   }
 
@@ -83,17 +87,15 @@ export async function streamFromGemini(
         if (!line.startsWith('data: ')) continue
         const json = line.slice(6).trim()
         if (json === '[DONE]') continue
-
         try {
           const parsed = JSON.parse(json)
-          const chunk: string =
-            parsed?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+          const chunk: string = parsed?.choices?.[0]?.delta?.content ?? ''
           if (chunk) {
             fullText += chunk
             callbacks.onChunk(chunk)
           }
         } catch {
-          // Malformed SSE line — skip
+          // malformed SSE line — skip
         }
       }
     }

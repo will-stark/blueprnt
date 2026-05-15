@@ -15,7 +15,7 @@ import { hashForLogging } from '@/lib/logging'
 import { classifyRequest, applyHardFilters, applyEditFilters } from '@/lib/ai/classify'
 import { loadBlueprintContext } from '@/lib/ai/context'
 import { buildPrompt } from '@/lib/ai/prompt-builder'
-import { streamFromGemini } from '@/lib/ai/gemini'
+import { streamFromAI } from '@/lib/ai/stream'
 import { validateBlueprint } from '@/lib/ai/validate'
 import { alertDailyCapWarning } from '@/lib/alerts'
 import type { GenerateRequestBody, PromptPayload } from '@/lib/ai/types'
@@ -46,7 +46,7 @@ function buildStream(
 ): Response {
   const stream = new ReadableStream({
     async start(controller) {
-      await streamFromGemini(payload, {
+      await streamFromAI(payload, {
         onChunk: (text) => send(controller, { text }),
         onComplete: async (fullText) => {
           try {
