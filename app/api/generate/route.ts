@@ -55,7 +55,10 @@ function buildStream(
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err)
             console.error('[GENERATE] onComplete error:', msg)
-            send(controller, { done: true, error: 'Failed to save blueprint. Please try again.' })
+            const clientMsg = msg === 'blueprint_invalid'
+              ? 'Generation failed. Please try again.'
+              : msg
+            send(controller, { done: true, error: clientMsg })
           }
           controller.close()
         },

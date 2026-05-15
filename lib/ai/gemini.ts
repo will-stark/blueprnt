@@ -1,7 +1,7 @@
 import type { PromptPayload } from './types'
 
-const PRIMARY_MODEL = 'gemini-2.5-flash'
-const FALLBACK_MODEL = 'gemini-2.0-flash'
+const PRIMARY_MODEL = 'gemini-2.0-flash'
+const FALLBACK_MODEL = 'gemini-1.5-flash'
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 interface StreamCallbacks {
@@ -26,9 +26,15 @@ export async function streamFromGemini(
     contents: [{ role: 'user', parts: [{ text: payload.user }] }],
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 16384,
+      maxOutputTokens: 8192,
     },
   }
+
+  const ac = new AbortController()
+  const timer = setTimeout(() => {
+    console.warn(`[GEMINI] Timeout after 50s — aborting model ${model}`)
+    ac.abort()
+  }, 50_000)
 
   let res: Response
   try {
@@ -36,15 +42,19 @@ export async function streamFromGemini(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: ac.signal,
     })
   } catch (err) {
-    // Network failure — try fallback if we haven't already
+    clearTimeout(timer)
+    // Network failure or timeout — try fallback if we haven't already
     if (model !== FALLBACK_MODEL) {
+      console.warn(`[GEMINI] Fetch error for ${model} — trying fallback`)
       return streamFromGemini(payload, callbacks, FALLBACK_MODEL)
     }
     callbacks.onError(err instanceof Error ? err : new Error(String(err)))
     return
   }
+  clearTimeout(timer)
 
   if (!res.ok) {
     const errorText = await res.text().catch(() => '(unreadable)')

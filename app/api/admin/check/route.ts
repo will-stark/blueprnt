@@ -16,7 +16,10 @@ export async function GET(req: NextRequest) {
   const identityId = searchParams.get('identityId')
   const email = searchParams.get('email')
 
-  console.log('[ADMIN-CHECK] GET hit: identityType=%s hasIdentityId=%s', identityType, !!identityId)
+  const adminEmails = getAdminEmails()
+  const adminFids = getAdminFids()
+  console.log('[ADMIN-CHECK] GET hit: identityType=%s hasIdentityId=%s hasEmail=%s adminEmailCount=%d adminFidCount=%d',
+    identityType, !!identityId, !!email, adminEmails.size, adminFids.size)
 
   if (!identityType || !identityId) {
     console.log('[ADMIN-CHECK] Missing params — returning isAdmin=false')
@@ -26,9 +29,13 @@ export async function GET(req: NextRequest) {
   let isAdmin = false
 
   if (identityType === 'farcaster') {
-    isAdmin = getAdminFids().has(identityId)
-  } else if (identityType === 'privy' && email) {
-    isAdmin = getAdminEmails().has(email.toLowerCase())
+    isAdmin = adminFids.has(identityId)
+  } else if (identityType === 'privy') {
+    if (!email) {
+      console.warn('[ADMIN-CHECK] privy check skipped — email param is empty')
+    } else {
+      isAdmin = adminEmails.has(email.toLowerCase())
+    }
   }
 
   console.log('[ADMIN-CHECK] Result: identityType=%s isAdmin=%s', identityType, isAdmin)

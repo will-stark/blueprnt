@@ -23,6 +23,7 @@ export function ChatBox({
   maxChars = 1000,
 }: ChatBoxProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const MIN_CHARS = 10
   const count = value.length
   const pct = count / maxChars
 
@@ -35,13 +36,14 @@ export function ChatBox({
   }, [value])
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !disabled && !isStreaming && value.trim()) {
+    if (e.key === 'Enter' && !e.shiftKey && canSend) {
       e.preventDefault()
       onSend()
     }
   }
 
-  const canSend = value.trim().length > 0 && !disabled && !isStreaming
+  const trimmed = value.trim()
+  const canSend = trimmed.length >= MIN_CHARS && !disabled && !isStreaming
 
   const counterColor =
     pct >= 1
@@ -52,8 +54,13 @@ export function ChatBox({
 
   return (
     <div className="w-full space-y-1.5">
-      {/* Character nudge — visible when under 50 chars */}
-      {value.length > 0 && value.length < 50 && (
+      {/* Character nudge */}
+      {trimmed.length > 0 && trimmed.length < MIN_CHARS && (
+        <p className="text-[12px] px-1" style={{ color: 'var(--text-muted)' }}>
+          Please describe your app idea in more detail.
+        </p>
+      )}
+      {trimmed.length >= MIN_CHARS && trimmed.length < 50 && (
         <p className="text-[12px] px-1" style={{ color: 'var(--text-muted)' }}>
           Adding more detail will improve your blueprint.
         </p>
