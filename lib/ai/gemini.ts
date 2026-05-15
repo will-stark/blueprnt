@@ -1,7 +1,7 @@
 import type { PromptPayload } from './types'
 
-const PRIMARY_MODEL = 'gemini-2.0-flash'
-const FALLBACK_MODEL = 'gemini-2.0-flash-lite'
+const PRIMARY_MODEL = 'gemini-1.5-flash'
+const FALLBACK_MODEL = 'gemini-1.5-flash-8b'
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 interface StreamCallbacks {

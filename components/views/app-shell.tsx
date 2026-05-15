@@ -186,7 +186,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
         }
         retries = 0
       }
-      timer = setTimeout(poll, 10_000)
+      timer = setTimeout(poll, 30_000)
     }
 
     const onVisible = () => { if (!document.hidden) poll() }
