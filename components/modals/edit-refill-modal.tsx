@@ -88,12 +88,11 @@ export function EditRefillModal({
           className="flex items-center gap-2 px-3 py-2 rounded-lg border-[0.5px] border-[var(--border)]"
           style={{ backgroundColor: 'var(--bg-raised)' }}
         >
-          <div
-            className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0"
-            style={{ backgroundColor: '#0052FF' }}
-          >
-            B
-          </div>
+          <img
+            src="/images/base_logo.webp"
+            alt="Base"
+            className="w-5 h-5 rounded-full shrink-0 object-cover"
+          />
           <span className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
             Network: Base · USDC
           </span>
