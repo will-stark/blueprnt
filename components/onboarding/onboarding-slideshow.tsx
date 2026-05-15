@@ -44,11 +44,11 @@ function TermsBox() {
       style={{ backgroundColor: 'var(--bg-raised)' }}
     >
       <div
-        className="overflow-y-auto p-5 space-y-4 text-[13px] leading-relaxed text-left"
-        style={{ maxHeight: 240, color: 'var(--text-secondary)' }}
+        className="overflow-y-auto p-4 md:p-5 space-y-4 text-[13px] leading-relaxed text-left"
+        style={{ maxHeight: 'min(240px, 38vh)', color: 'var(--text-secondary)' }}
       >
         <div>
-          <p className="text-[15px]" style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+          <p className="text-[13px] md:text-[15px]" style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
             Terms of Use — {appName}
           </p>
           <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Last Updated: May 2026</p>
@@ -149,7 +149,7 @@ export function OnboardingSlideshow({ userType, userId, onDismiss }: OnboardingS
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]">
       <div
-        className="relative w-full bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-3xl p-8 md:p-12 flex flex-col items-center text-center gap-6 animate-[modalIn_250ms_ease-out]"
+        className="relative w-full bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-3xl p-6 md:p-12 flex flex-col items-center text-center gap-5 md:gap-6 animate-[modalIn_250ms_ease-out]"
         style={{
           maxWidth: 672,
           maxHeight: '90vh',
@@ -187,7 +187,7 @@ export function OnboardingSlideshow({ userType, userId, onDismiss }: OnboardingS
 
         {/* Title */}
         <h1
-          className="text-[28px] md:text-[32px] font-medium leading-tight text-balance"
+          className="text-[22px] md:text-[28px] font-medium leading-tight text-balance"
           style={{ color: 'var(--text-primary)' }}
         >
           {slide.title}
@@ -198,7 +198,7 @@ export function OnboardingSlideshow({ userType, userId, onDismiss }: OnboardingS
           <TermsBox />
         ) : (
           <div
-            className="text-[15px] leading-relaxed max-w-md text-pretty space-y-3 w-full"
+            className="text-[14px] md:text-[15px] leading-relaxed max-w-md text-pretty space-y-3 w-full"
             style={{ color: 'var(--text-secondary)' }}
           >
             {body.split('\n\n').map((para, i) => (
@@ -222,7 +222,7 @@ export function OnboardingSlideshow({ userType, userId, onDismiss }: OnboardingS
           {isLast ? (
             <button
               onClick={handleDismiss}
-              className="flex-1 mx-4 py-3 rounded-xl text-[14px] font-medium text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
+              className="flex-1 mx-4 py-3 rounded-xl text-[13px] md:text-[14px] font-medium text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
               style={{ backgroundColor: 'var(--accent)' }}
             >
               Get started
@@ -230,7 +230,7 @@ export function OnboardingSlideshow({ userType, userId, onDismiss }: OnboardingS
           ) : (
             <button
               onClick={goNext}
-              className="flex-1 mx-4 py-3 rounded-xl text-[14px] font-medium text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
+              className="flex-1 mx-4 py-3 rounded-xl text-[13px] md:text-[14px] font-medium text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
               style={{ backgroundColor: 'var(--accent)' }}
             >
               Next

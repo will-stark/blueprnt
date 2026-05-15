@@ -13,7 +13,7 @@ export function ContinueChatRegistered({ onClose, onPurchase }: ContinueChatRegi
     <SlideUp onClose={onClose}>
       <div className="space-y-4">
         <div>
-          <h3 className="text-[16px] font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-[15px] md:text-[16px] font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
             Out of edits
           </h3>
           <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
@@ -60,7 +60,7 @@ export function ContinueChatAnon({ onClose, onLogin }: ContinueChatAnonProps) {
     <SlideUp onClose={onClose}>
       <div className="space-y-4">
         <div>
-          <h3 className="text-[16px] font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-[15px] md:text-[16px] font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
             Log in to generate your blueprint
           </h3>
           <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
@@ -106,7 +106,7 @@ export function ZeroCreditsSlideUp({
     <SlideUp onClose={onClose}>
       <div className="space-y-4">
         <div>
-          <h3 className="text-[16px] font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-[15px] md:text-[16px] font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
             {"You're out of credits"}
           </h3>
           <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>

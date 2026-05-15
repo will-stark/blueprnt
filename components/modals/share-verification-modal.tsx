@@ -112,7 +112,7 @@ export function ShareVerificationModal({ onClose, onSuccess, identityId }: Share
         {(state === 'verifying' || state === 'round2_verifying') && (
           <div className="flex flex-col items-center gap-4 py-6">
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
-            <p className="text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
+            <p className="text-[13px] md:text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
               Verifying cast...
             </p>
           </div>
@@ -123,7 +123,7 @@ export function ShareVerificationModal({ onClose, onSuccess, identityId }: Share
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: 'var(--warning)' }} />
-              <p className="text-[14px]" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-[13px] md:text-[14px]" style={{ color: 'var(--text-primary)' }}>
                 {"Couldn't verify your cast."}
               </p>
             </div>
@@ -143,7 +143,7 @@ export function ShareVerificationModal({ onClose, onSuccess, identityId }: Share
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: 'var(--warning)' }} />
-              <p className="text-[14px]" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-[13px] md:text-[14px]" style={{ color: 'var(--text-primary)' }}>
                 {"Still couldn't verify your cast."}
               </p>
             </div>
@@ -166,7 +166,7 @@ export function ShareVerificationModal({ onClose, onSuccess, identityId }: Share
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" style={{ color: 'var(--success)' }} />
               <div>
-                <p className="text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                <p className="text-[13px] md:text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
                   Cast verified
                 </p>
                 <p className="text-[13px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -190,7 +190,7 @@ export function ShareVerificationModal({ onClose, onSuccess, identityId }: Share
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: 'var(--warning)' }} />
               <div>
-                <p className="text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                <p className="text-[13px] md:text-[14px] font-medium" style={{ color: 'var(--text-primary)' }}>
                   Verification unavailable
                 </p>
                 <p className="text-[13px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>

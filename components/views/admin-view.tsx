@@ -38,9 +38,9 @@ function StatCard({ label, value, sub, progress }: {
       style={{ backgroundColor: 'var(--bg-surface)', boxShadow: 'var(--shadow-sm)' }}
     >
       <div className="text-[12px] mb-2" style={{ color: 'var(--text-muted)' }}>{label}</div>
-      <div className="font-mono text-[28px]" style={{ color: 'var(--text-primary)' }}>
+      <div className="font-mono text-[22px] md:text-[28px]" style={{ color: 'var(--text-primary)' }}>
         {value}
-        {sub && <span className="text-[16px] ml-1" style={{ color: 'var(--text-muted)' }}>{sub}</span>}
+        {sub && <span className="text-[13px] md:text-[16px] ml-1" style={{ color: 'var(--text-muted)' }}>{sub}</span>}
       </div>
       {progress && (
         <>
@@ -133,7 +133,7 @@ export function AdminView({ identityType, identityId, email }: AdminViewProps) {
             <Shield className="w-5 h-5" style={{ color: 'var(--accent)' }} />
           </div>
           <div>
-            <h1 className="text-[20px] font-medium" style={{ color: 'var(--text-primary)' }}>
+            <h1 className="text-[17px] md:text-[20px] font-medium" style={{ color: 'var(--text-primary)' }}>
               Admin
             </h1>
             <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>

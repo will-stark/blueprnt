@@ -12,7 +12,7 @@ export function UserMessage({ content }: UserMessageProps) {
   return (
     <div className="flex justify-end mb-6">
       <div
-        className="max-w-[80%] px-4 py-3 rounded-2xl rounded-tr-md text-[14px] leading-relaxed"
+        className="max-w-[80%] px-4 py-3 rounded-2xl rounded-tr-md text-[13px] md:text-[14px] leading-relaxed"
         style={{
           backgroundColor: 'var(--accent-light)',
           color: 'var(--text-primary)',

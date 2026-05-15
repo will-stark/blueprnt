@@ -61,7 +61,7 @@ export function TipModal({ onClose, userType }: TipModalProps) {
             <button
               key={amount}
               onClick={() => setSelected(amount)}
-              className="py-3 rounded-xl border-[0.5px] text-[14px] font-medium transition-all duration-200"
+              className="py-3 rounded-xl border-[0.5px] text-[13px] md:text-[14px] font-medium transition-all duration-200"
               style={{
                 borderColor: selected === amount ? 'var(--accent)' : 'var(--border)',
                 backgroundColor: selected === amount ? 'var(--accent-light)' : 'var(--bg-surface)',
@@ -131,7 +131,7 @@ export function SupportPopup({ onClose }: SupportPopupProps) {
     <SlideUp onClose={onClose}>
       <div className="space-y-4">
         <div>
-          <h3 className="text-[16px] font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-[15px] md:text-[16px] font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
             Support the developer
           </h3>
           <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>

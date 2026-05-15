@@ -26,8 +26,11 @@ export function SlideUp({ onClose, children }: SlideUpProps) {
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       {/* Panel */}
       <div
-        className="relative w-full md:max-w-md bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-t-3xl md:rounded-2xl p-6 animate-[slideUp_300ms_ease-out]"
-        style={{ boxShadow: 'var(--shadow-lg)' }}
+        className="relative w-full md:max-w-md bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-t-3xl md:rounded-2xl px-5 pt-5 pb-5 md:p-6 animate-[slideUp_300ms_ease-out]"
+        style={{
+          boxShadow: 'var(--shadow-lg)',
+          paddingBottom: 'max(20px, env(safe-area-inset-bottom, 20px))',
+        }}
       >
         {/* Drag handle (mobile only) */}
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--border)] md:hidden" />

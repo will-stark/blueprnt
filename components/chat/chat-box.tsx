@@ -72,7 +72,7 @@ export function ChatBox({
           maxLength={maxChars}
           rows={1}
           disabled={disabled || isStreaming}
-          className="flex-1 bg-transparent resize-none text-[14px] leading-relaxed focus:outline-none disabled:opacity-50"
+          className="flex-1 bg-transparent resize-none text-[16px] md:text-[14px] leading-relaxed focus:outline-none disabled:opacity-50"
           style={{
             color: 'var(--text-primary)',
             minHeight: '24px',

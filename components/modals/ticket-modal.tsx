@@ -52,7 +52,7 @@ export function TicketModal({ onClose, identityId, identityType }: TicketModalPr
       <div className="p-6 space-y-4">
         {submitState === 'success' ? (
           <div className="py-8 text-center space-y-2">
-            <p className="text-[15px] font-medium" style={{ color: 'var(--text-primary)' }}>Ticket submitted</p>
+            <p className="text-[14px] md:text-[15px] font-medium" style={{ color: 'var(--text-primary)' }}>Ticket submitted</p>
             <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
               {"Your ticket has been submitted. We'll look into it."}
             </p>
@@ -81,7 +81,7 @@ export function TicketModal({ onClose, identityId, identityType }: TicketModalPr
                 value={title}
                 onChange={(e) => setTitle(e.target.value.slice(0, 100))}
                 placeholder="Short description of your issue..."
-                className="w-full px-4 py-3 bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-lg text-[14px] placeholder:text-[var(--text-muted)] transition-colors duration-200 focus:outline-none focus:border-[var(--accent)]"
+                className="w-full px-4 py-3 bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-lg text-[16px] md:text-[14px] placeholder:text-[var(--text-muted)] transition-colors duration-200 focus:outline-none focus:border-[var(--accent)]"
                 style={{ color: 'var(--text-primary)' }}
               />
               <div
@@ -105,7 +105,7 @@ export function TicketModal({ onClose, identityId, identityType }: TicketModalPr
                 onChange={(e) => setDescription(e.target.value.slice(0, 1000))}
                 placeholder="Describe what happened in detail..."
                 rows={5}
-                className="w-full px-4 py-3 bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-lg text-[14px] placeholder:text-[var(--text-muted)] resize-none transition-colors duration-200 focus:outline-none focus:border-[var(--accent)]"
+                className="w-full px-4 py-3 bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-lg text-[16px] md:text-[14px] placeholder:text-[var(--text-muted)] resize-none transition-colors duration-200 focus:outline-none focus:border-[var(--accent)]"
                 style={{ color: 'var(--text-primary)' }}
               />
               <div

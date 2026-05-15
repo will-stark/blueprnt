@@ -13,7 +13,7 @@ export function ClearAllModal({ onClose, onConfirm }: ClearAllModalProps) {
   return (
     <Modal title="Clear all chats" onClose={onClose}>
       <div className="p-6 space-y-5">
-        <p className="text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-[13px] md:text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           This will permanently delete all your chats and blueprints. This action cannot be undone.
         </p>
         <div className="flex gap-3">
@@ -48,7 +48,7 @@ export function DeleteChatModal({ chatTitle, onClose, onConfirm }: DeleteChatMod
   return (
     <Modal title="Delete chat" onClose={onClose}>
       <div className="p-6 space-y-5">
-        <p className="text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-[13px] md:text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           Delete{' '}
           <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
             &ldquo;{chatTitle}&rdquo;
@@ -102,7 +102,7 @@ export function RenameChatModal({ currentTitle, onClose, onSave }: RenameChatMod
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           autoFocus
-          className="w-full px-4 py-3 bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-lg text-[14px] transition-colors duration-200 focus:outline-none focus:border-[var(--accent)]"
+          className="w-full px-4 py-3 bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-lg text-[16px] md:text-[14px] transition-colors duration-200 focus:outline-none focus:border-[var(--accent)]"
           style={{ color: 'var(--text-primary)' }}
         />
         <div className="flex gap-3">
@@ -137,7 +137,7 @@ export function NewChatWarningModal({ onClose, onConfirm }: NewChatWarningModalP
   return (
     <Modal title="Start a new chat?" onClose={onClose}>
       <div className="p-6 space-y-5">
-        <p className="text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-[13px] md:text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           Your current chat will be lost. Sign in to save chats permanently.
         </p>
         <div className="flex gap-3">
@@ -176,7 +176,7 @@ export function AccountPromptModal({ onClose, onLogin }: AccountPromptModalProps
   return (
     <Modal title="Create an account" onClose={onClose}>
       <div className="p-6 space-y-4">
-        <p className="text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-[13px] md:text-[14px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           Sign up to get 3 free blueprints, save your chats, and access all features.
         </p>
         <div className="space-y-2">
