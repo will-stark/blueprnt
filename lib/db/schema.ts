@@ -23,6 +23,7 @@ export const users = pgTable('users', {
   walletAddress:            varchar('wallet_address', { length: 42 }),
   pfpUrl:                   text('pfp_url'),
   creditsRemaining:         integer('credits_remaining').notNull().default(3),
+  purchasedCreditsRemaining: integer('purchased_credits_remaining').notNull().default(0),
   giftedCycleExpiresAt:     timestamp('gifted_cycle_expires_at'),
   creditCycleExpiresAt:     timestamp('credit_cycle_expires_at'),
   shareRewardLastClaimedAt: timestamp('share_reward_last_claimed_at'),

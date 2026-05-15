@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
         // If edits are 0 and there's an active gifted cycle, grant a batch
         if (editsRemaining === 0 && giftedCycleExpiresAt && giftedCycleExpiresAt > now) {
           await db.update(chats).set({ editsRemaining: 3 }).where(eq(chats.id, chatId))
-          editsRemaining = 5
+          editsRemaining = 3
         }
       }
     }
@@ -92,11 +92,13 @@ export async function GET(req: NextRequest) {
       await db.update(users).set({ isAdmin: true }).where(eq(users.id, user.id))
     }
 
-    console.log('[STATE] OK: credits=%d edits=%s isAdmin=%s (env=%s)', user.creditsRemaining, editsRemaining ?? 'n/a', isAdminUser, adminFromEnv)
+    const totalCredits = user.creditsRemaining + user.purchasedCreditsRemaining
+    console.log('[STATE] OK: credits=%d (free=%d paid=%d) edits=%s isAdmin=%s (env=%s)',
+      totalCredits, user.creditsRemaining, user.purchasedCreditsRemaining, editsRemaining ?? 'n/a', isAdminUser, adminFromEnv)
     return NextResponse.json({
       userType: identityType,
       anonymousAllowed,
-      creditsRemaining: user.creditsRemaining,
+      creditsRemaining: totalCredits,
       editsRemaining,
       giftedCycleExpiresAt,
       creditCycleExpiresAt: user.creditCycleExpiresAt,

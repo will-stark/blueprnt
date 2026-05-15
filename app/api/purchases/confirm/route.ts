@@ -207,11 +207,11 @@ export async function POST(req: NextRequest) {
         editsDelta:   editsDelta   > 0 ? editsDelta   : null,
       })
 
-      // 3. Apply credits
+      // 3. Apply credits — purchased credits go into the paid pool (5 edits/chat)
       if (creditsDelta > 0) {
         await tx
           .update(users)
-          .set({ creditsRemaining: sql`${users.creditsRemaining} + ${creditsDelta}` })
+          .set({ purchasedCreditsRemaining: sql`${users.purchasedCreditsRemaining} + ${creditsDelta}` })
           .where(eq(users.id, user.id))
       }
 

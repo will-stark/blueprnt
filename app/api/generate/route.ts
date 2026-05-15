@@ -210,7 +210,8 @@ export async function POST(req: NextRequest) {
   const isNewChat = !chatId
 
   if (isNewChat) {
-    if (user.creditsRemaining <= 0) return Response.json({ error: 'no_credits' }, { status: 402 })
+    const totalCredits = user.creditsRemaining + user.purchasedCreditsRemaining
+    if (totalCredits <= 0) return Response.json({ error: 'no_credits' }, { status: 402 })
   } else {
     const [chat] = await db.select().from(chats).where(eq(chats.id, chatId!)).limit(1)
     if (!chat) return Response.json({ error: 'Chat not found' }, { status: 404 })
@@ -248,20 +249,28 @@ export async function POST(req: NextRequest) {
     let editsRemaining: number
 
     if (isNewChat) {
+      // Spend from purchased pool first (5 edits); fall back to free pool (3 edits)
+      const usingPurchased = user.purchasedCreditsRemaining > 0
+      const starterEdits = usingPurchased ? 5 : 3
+
       const [newChat] = await db
         .insert(chats)
-        .values({ userId: user.id, title: encrypt(title) })
+        .values({ userId: user.id, title: encrypt(title), editsRemaining: starterEdits })
         .returning()
       finalChatId = newChat.id
       editsRemaining = newChat.editsRemaining
 
       const [updatedUser] = await db
         .update(users)
-        .set({ creditsRemaining: sql`GREATEST(${users.creditsRemaining} - 1, 0)` })
+        .set(
+          usingPurchased
+            ? { purchasedCreditsRemaining: sql`GREATEST(${users.purchasedCreditsRemaining} - 1, 0)` }
+            : { creditsRemaining: sql`GREATEST(${users.creditsRemaining} - 1, 0)` }
+        )
         .where(eq(users.id, user.id))
         .returning()
 
-      if (updatedUser.creditsRemaining === 0) {
+      if (updatedUser.creditsRemaining === 0 && updatedUser.purchasedCreditsRemaining === 0) {
         await maybeGrantGiftedCycle(user)
       }
     } else {

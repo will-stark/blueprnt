@@ -397,10 +397,10 @@ export const MOCK_TICKETS: MockTicket[] = [
 
 // Credit purchase options
 export const CREDIT_OPTIONS = [
-  { tier: 0, label: 'Single', price: '$0.50', blueprints: 1, edits: 3 },
-  { tier: 1, label: 'Pack — $1', price: '$1.00', blueprints: 2, edits: 3 },
-  { tier: 2, label: 'Pack — $5', price: '$5.00', blueprints: 12, edits: 3, perGen: '$0.42' },
-  { tier: 3, label: 'Pack — $10', price: '$10.00', blueprints: 25, edits: 3, perGen: '$0.40' },
+  { tier: 0, label: 'Single', price: '$0.50', blueprints: 1, edits: 5 },
+  { tier: 1, label: 'Pack — $1', price: '$1.00', blueprints: 2, edits: 5 },
+  { tier: 2, label: 'Pack — $5', price: '$5.00', blueprints: 12, edits: 5, perGen: '$0.42' },
+  { tier: 3, label: 'Pack — $10', price: '$10.00', blueprints: 25, edits: 5, perGen: '$0.40' },
 ]
 
 // Mock AI responses for streaming simulation
