@@ -493,6 +493,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
           onOpenTicket={() => setActiveModal('ticket')}
           onOpenShare={() => setActiveModal('share')}
           onSignIn={login}
+          onSignOut={handleSignOut}
         />
 
         {showAdmin ? (

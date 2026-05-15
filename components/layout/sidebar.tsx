@@ -209,43 +209,6 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* Identity block — ABOVE chat list so sign-out is always accessible */}
-      <div className="px-3 pb-2 shrink-0">
-        {isAnonymous ? (
-          <button
-            onClick={onSignIn}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150 text-left border-[0.5px] border-[var(--border)]"
-            style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-muted)' }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-surface)' }}
-          >
-            <LogIn className="w-4 h-4 shrink-0" />
-            <span className="flex-1">Sign in / Sign up</span>
-            <ThemeToggle />
-          </button>
-        ) : (
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2 min-w-0 px-1 py-1">
-              <UserPFP user={user} size={28} />
-              <div className="flex-1 min-w-0">
-                <span className="text-[13px] truncate block" style={{ color: 'var(--text-secondary)' }}>
-                  {isFarcaster ? `@${user.username}` : (user.email ?? user.username)}
-                </span>
-              </div>
-              <ThemeToggle />
-            </div>
-            {user.type === 'privy' && (
-              <SidebarItem
-                icon={LogOut}
-                label="Sign out"
-                variant="default"
-                onClick={onSignOut}
-              />
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Chat list */}
       <div className="flex-1 overflow-y-auto px-2">
         <div
@@ -278,8 +241,47 @@ export function Sidebar({
         )}
       </div>
 
-      {/* Utility actions */}
-      <div className="border-t-[0.5px] border-[var(--border)] p-3 space-y-0.5 shrink-0">
+      {/* Identity block + utility actions */}
+      <div
+        className="border-t-[0.5px] border-[var(--border)] p-3 space-y-0.5 shrink-0"
+        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}
+      >
+        {/* User identity */}
+        {isAnonymous ? (
+          <button
+            onClick={onSignIn}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150 text-left border-[0.5px] border-[var(--border)] mb-1"
+            style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-muted)' }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-surface)' }}
+          >
+            <LogIn className="w-4 h-4 shrink-0" />
+            <span className="flex-1">Sign in / Sign up</span>
+            <ThemeToggle />
+          </button>
+        ) : (
+          <div className="space-y-0.5 mb-1">
+            <div className="flex items-center gap-2 min-w-0 px-1 py-1">
+              <UserPFP user={user} size={28} />
+              <div className="flex-1 min-w-0">
+                <span className="text-[13px] truncate block" style={{ color: 'var(--text-secondary)' }}>
+                  {isFarcaster ? `@${user.username}` : (user.email ?? user.username)}
+                </span>
+              </div>
+              <ThemeToggle />
+            </div>
+            {user.type === 'privy' && (
+              <SidebarItem
+                icon={LogOut}
+                label="Sign out"
+                variant="default"
+                onClick={onSignOut}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Utility actions */}
         {isFarcaster && (
           <SidebarItem
             icon={Gift}

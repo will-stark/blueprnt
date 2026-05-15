@@ -1,6 +1,6 @@
 'use client'
 
-import { Menu, Gift, HelpCircle, LogIn } from 'lucide-react'
+import { Menu, Gift, HelpCircle } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
 import { Pill } from '@/components/ui/pill'
 import { UserPFP } from '@/components/ui/user-pfp'
@@ -16,6 +16,7 @@ interface HeaderProps {
   onOpenTicket: () => void
   onOpenShare?: () => void
   onSignIn?: () => void
+  onSignOut?: () => void
 }
 
 export function Header({
@@ -28,16 +29,18 @@ export function Header({
   onOpenTicket,
   onOpenShare,
   onSignIn,
+  onSignOut,
 }: HeaderProps) {
   const isRegistered = user.type !== 'anonymous'
   const isAnonymous = user.type === 'anonymous'
   const isFarcaster = user.type === 'farcaster'
+  const isPrivy = user.type === 'privy'
   const creditsZero = credits === 0
   const editsZero = (edits ?? 1) === 0
 
   return (
     <header
-      className="sticky top-0 z-10 h-14 flex items-center justify-between px-4 border-b-[0.5px] border-[var(--border)]"
+      className="sticky top-0 z-10 h-[60px] flex items-center justify-between px-4 border-b-[0.5px] border-[var(--border)]"
       style={{ backgroundColor: 'var(--bg-surface)' }}
     >
       {/* Left: hamburger (mobile only) + logo */}
@@ -117,19 +120,29 @@ export function Header({
           </div>
         )}
 
-        {/* Anonymous: sign in button */}
+        {/* Privy: sign out */}
+        {isPrivy && (
+          <button
+            onClick={onSignOut}
+            className="px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 hover:bg-[var(--bg-raised)] active:scale-95"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            Sign out
+          </button>
+        )}
+
+        {/* Anonymous: sign in */}
         {isAnonymous && (
           <button
             onClick={onSignIn}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-[0.5px] text-[13px] font-medium transition-all duration-200 hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
+            className="px-3 py-1.5 rounded-lg border-[0.5px] text-[13px] font-medium transition-all duration-200 hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
             style={{
               borderColor: 'var(--border-strong)',
               color: 'var(--text-secondary)',
               backgroundColor: 'var(--bg-surface)',
             }}
           >
-            <LogIn className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">Sign in</span>
+            Sign in
           </button>
         )}
       </div>
