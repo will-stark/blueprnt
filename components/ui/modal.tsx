@@ -35,11 +35,11 @@ export function Modal({ title, onClose, children, maxWidth = 'max-w-md' }: Modal
       />
       {/* Modal panel */}
       <div
-        className={`relative w-full ${maxWidth} bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-2xl animate-[modalIn_250ms_ease-out]`}
+        className={`relative w-full ${maxWidth} bg-[var(--bg-surface)] border-[0.5px] border-[var(--border)] rounded-2xl animate-[modalIn_250ms_ease-out] flex flex-col max-h-[90dvh]`}
         style={{ boxShadow: 'var(--shadow-modal)' }}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b-[0.5px] border-[var(--border)]">
+          <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b-[0.5px] border-[var(--border)]">
             <h2 className="text-[16px] font-medium" style={{ color: 'var(--text-primary)' }}>
               {title}
             </h2>
@@ -55,7 +55,9 @@ export function Modal({ title, onClose, children, maxWidth = 'max-w-md' }: Modal
             )}
           </div>
         )}
-        {children}
+        <div className="overflow-y-auto flex-1 min-h-0">
+          {children}
+        </div>
       </div>
     </div>
   )

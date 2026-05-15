@@ -135,8 +135,8 @@ export async function POST(req: NextRequest) {
   if (kind === 'off_topic') {
     await logOffTopicStrike(identityId)
     const errorMsg = isSecondStrike
-      ? 'This is not a general purpose chatbot. Kindly stick to describing an app idea.'
-      : 'Blueprnt generates technical blueprints for app ideas. Please describe the app you want to build.'
+      ? 'Blueprnt is focused on app blueprints. Try describing a specific app you want to build and we\'ll generate a full technical spec.'
+      : 'Blueprnt generates technical blueprints for app ideas. Try something like "a marketplace for X" or "an app that lets Y do Z".'
     return Response.json({ error: errorMsg }, { status: 400 })
   }
 

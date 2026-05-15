@@ -12,28 +12,34 @@ const BLOCKLIST = [
 
 const MIN_LENGTH = 10
 
-// Patterns that strongly indicate a factual/general-knowledge question rather
-// than an app idea. Checked only when no build-intent word is present.
+// Only the narrow, unambiguous factual-lookup patterns.
+// Everything else is intentionally left to the AI's own system prompt rejection.
 const QUESTION_PATTERNS = [
-  /^(what is|what's|what are|what were|what was)\s+the\s+/i,
-  /^(what is|what's|what are)\s+(a|an)\s+/i,
   /^who\s+(is|was|are|were)\s+/i,
   /^when\s+(was|is|did|were|will|does)\s+/i,
   /^where\s+(is|are|was|were)\s+/i,
-  /^(how many|how much|how old|how far|how long|how tall|how big)\s+/i,
-  /^(tell me|explain|describe)\s+(what|who|where|when|why|how)\s+/i,
-  /^(give me|find me|search for)\s+(information|facts|data|the answer)/i,
-  /^(name of|what.{0,20}name of)\s+the\s+/i,
-  /^(do you know|can you tell me|i want to know)\s+(what|who|where|when|why|how|the)/i,
+  /^what\s+(is|are|was|were)\s+the\s+(capital|population|currency|president|prime minister|flag|gdp|timezone)/i,
 ]
 
-// If any of these appear, the message is probably about building something
-// regardless of how it's phrased — allow through even if it looks like a question.
+// If any of these appear the message is about building something —
+// allow through even if it matches a question pattern.
 const BUILD_INTENT = [
   'build', 'creat', 'develop', 'design', 'make a', 'make an',
   'app', 'platform', 'website', 'web app', 'mobile', 'tool', 'software',
   'system', 'product', 'service', 'saas', 'marketplace', 'dashboard',
   'api', 'game', 'clone', 'startup', 'feature', 'mvp',
+  // natural idea phrasing
+  'idea', 'concept', 'imagine', 'want', 'i need', 'we need',
+  'social', 'community', 'network', 'forum', 'feed',
+  'tracker', 'generator', 'aggregator', 'scheduler', 'planner', 'organiser', 'organizer',
+  'booking', 'reservation', 'listing', 'directory', 'job board',
+  'chat', 'messaging', 'notification', 'alert',
+  'store', 'shop', 'ecommerce', 'subscription', 'payment',
+  'wallet', 'token', 'nft', 'defi', 'onchain', 'on-chain', 'blockchain', 'crypto',
+  'analytics', 'monitoring', 'reporting', 'metrics',
+  'like uber', 'like airbnb', 'like twitter', 'like instagram', 'like tinder',
+  'but for', 'version of', 'similar to', 'alternative to',
+  'integration', 'automation', 'workflow', 'pipeline',
 ]
 
 function isOffTopicQuestion(lower: string): boolean {
@@ -61,10 +67,11 @@ export function classifyRequest(input: ClassifyInput): ClassifyResult {
     }
   }
 
+  // Skip question-pattern check for edits — the user is already in a blueprint session
   const isBlocked =
     message.trim().length < MIN_LENGTH ||
     BLOCKLIST.some((w) => lower.includes(w)) ||
-    isOffTopicQuestion(lower)
+    (!chatId && isOffTopicQuestion(lower))
 
   if (isBlocked) {
     return {
@@ -101,8 +108,8 @@ export function applyHardFilters(message: string): string | null {
   if (BLOCKLIST.some((w) => lower.includes(w))) {
     return 'Your message contains blocked content.'
   }
-  if (message.length > 1000) {
-    return `Your prompt is ${message.length} characters. Please reduce it to 1,000 or fewer.`
+  if (message.length > 2000) {
+    return `Your prompt is ${message.length} characters. Please reduce it to 2,000 or fewer.`
   }
   return null
 }
