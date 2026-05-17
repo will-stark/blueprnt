@@ -172,7 +172,7 @@ interface SupportPopupProps {
   onClose: () => void
 }
 
-const TREASURY_ADDRESS = process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? ''
+const SUPPORT_ADDRESS = '0xE87fbd4873aa2263EF1e20B5c919B1e26481c34b'
 
 function WalletRow({ label, address }: { label: string; address: string }) {
   const [copied, setCopied] = useState(false)
@@ -221,7 +221,7 @@ export function SupportPopup({ onClose }: SupportPopupProps) {
             Send USDC on Base to support {process.env.NEXT_PUBLIC_APP_NAME ?? 'Blueprnt'}. Thank you!
           </p>
         </div>
-        <WalletRow label="Base" address={TREASURY_ADDRESS} />
+        <WalletRow label="Base" address={SUPPORT_ADDRESS} />
         <button
           onClick={onClose}
           className="w-full py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 hover:bg-[var(--bg-raised)] border-[0.5px] border-[var(--border)]"

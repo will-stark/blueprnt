@@ -70,7 +70,7 @@ function TermsBox() {
           <p><span style={{ fontWeight: 500 }}>What we collect:</span> Farcaster users: FID, username, profile picture, wallet address. Privy users: email, login method, embedded wallet. All users: chat content, usage patterns, transaction data.</p>
           <p><span style={{ fontWeight: 500 }}>How we use it:</span> To provide the service, improve AI quality (anonymized), and prevent abuse.</p>
           <p><span style={{ fontWeight: 500 }}>What we don&apos;t do:</span> Sell your data or share your blueprints publicly without permission.</p>
-          <p>Data stored in Neon (PostgreSQL) with row-level security. Not end-to-end encrypted. Backups retained 30 days.</p>
+          <p>Chat content is encrypted at rest using AES-256 before being written to the database — only the server can decrypt it. Data stored in Neon (PostgreSQL) with row-level security. Backups retained 30 days.</p>
         </div>
 
         <div className="space-y-1.5">
