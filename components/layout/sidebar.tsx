@@ -186,7 +186,9 @@ export function Sidebar({
     >
       {/* Logo row */}
       <div className="p-4 border-b-[0.5px] border-[var(--border)] flex items-center justify-between shrink-0">
-        <Logo size="sidebar" />
+        <button onClick={onNewChat} aria-label="New chat">
+          <Logo size="sidebar" />
+        </button>
         <button
           onClick={onClose}
           aria-label="Close sidebar"
