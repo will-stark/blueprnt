@@ -39,7 +39,7 @@ export async function streamFromGroq(
         ],
         stream: true,
         temperature: 0.7,
-        max_tokens: 8192,
+        max_tokens: 16000,
       }),
       signal: ac.signal,
     })
