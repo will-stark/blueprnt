@@ -12,3 +12,17 @@ export function isReturningUser(): boolean {
 
   return hasOnboarding || hasAnonState
 }
+
+const SESSION_CHAT_KEY = 'blueprnt-session-chat'
+
+/** Returns the chat ID the user was last active in during this tab session, or null if none. */
+export function getSessionChat(): string | null {
+  if (typeof window === 'undefined') return null
+  return sessionStorage.getItem(SESSION_CHAT_KEY)
+}
+
+/** Records the active chat ID into session storage so a same-tab refresh restores it. */
+export function setSessionChat(chatId: string): void {
+  if (typeof window === 'undefined') return
+  sessionStorage.setItem(SESSION_CHAT_KEY, chatId)
+}

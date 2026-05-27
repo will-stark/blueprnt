@@ -22,7 +22,7 @@ import { WalletFundingSlideshow } from '@/components/onboarding/wallet-funding-s
 import { SplashScreen } from '@/components/ui/splash-screen'
 import { getNextResetTime } from '@/lib/share'
 import { shouldShowOnboarding } from '@/lib/onboarding'
-import { isReturningUser } from '@/lib/user-detection'
+import { isReturningUser, getSessionChat, setSessionChat } from '@/lib/user-detection'
 import { generateGradient } from '@/lib/pfp-gradient'
 import { useEnvironment } from '@/components/providers/environment-provider'
 import { usePrivy } from '@privy-io/react-auth'
@@ -222,7 +222,10 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
           const parsed = JSON.parse(raw)
           const loaded: MockChat[] = parsed.chats || []
           setChats(loaded)
-          if (!initialChatId) setActiveChatId(loaded[0]?.id ?? '')
+          if (!initialChatId) {
+            const sessionId = getSessionChat()
+            setActiveChatId(loaded.find((c) => c.id === sessionId)?.id ?? '')
+          }
         } catch {
           setChats([])
           if (!initialChatId) setActiveChatId('')
@@ -248,7 +251,10 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
             editsRemaining: (c.editsRemaining as number) ?? 3,
           }))
           setChats(loaded)
-          if (!initialChatId) setActiveChatId(loaded[0]?.id ?? '')
+          if (!initialChatId) {
+            const sessionId = getSessionChat()
+            setActiveChatId(loaded.find((c) => c.id === sessionId)?.id ?? '')
+          }
         })
         .catch(() => {
           setChats([])
@@ -364,6 +370,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     setMessages([])
     setShowAdmin(false)
     setSidebarOpen(false)
+    setSessionChat(id)
   }, [])
 
   const handleRenameChat = useCallback((id: string) => {
@@ -410,6 +417,7 @@ export function AppShell({ initialChatId, skipSplash = false }: AppShellProps) {
     ])
     setActiveChatId(chat.id)
     setEdits(chat.editsRemaining)
+    setSessionChat(chat.id)
     // Anonymous chats are local-only — no DB-backed URL to push to
     if (!chat.id.startsWith('anon_')) {
       router.push(`/chat/${chat.id}`)
